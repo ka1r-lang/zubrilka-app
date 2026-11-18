@@ -3,7 +3,8 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap">
 <style>
 /* Layout: липкая верхняя панель во всю ширину, под ней колонка 960px: сводка дня, колоды, экраны режимов.
-   Стиль по мотивам Quizlet: индиго #4255FF, светло-серый фон, белые карточки, жёлтый акцент, тёмная тема цвета ночного неба. */
+   Стиль: индиго #4255FF, светло-серый фон, белые карточки, жёлтый акцент, тёмная тема цвета ночного неба.
+   Повторения планирует FSRS-5: память карточки показана рядом с ней, настройки алгоритма на экране «Настройки». */
 :root {
   --bg:#F6F7FB; --surface:#FFFFFF; --ink:#282E3E; --muted:#586380; --line:#DADFEA; --soft:#EDEFF4;
   --pri:#4255FF; --pri-ink:#FFFFFF; --pri-text:#4255FF; --pri-soft:#E6E9FF;
@@ -157,7 +158,7 @@ input[type=text].title-in:focus{border-color:var(--pri);background:var(--surface
 /* кнопки-значки в шапке */
 .tools{display:flex;gap:2px;align-items:center}
 .iconbtn{appearance:none;width:40px;height:40px;border:0;border-radius:99px;background:transparent;color:var(--muted);cursor:pointer;display:inline-grid;place-items:center}
-.iconbtn:hover{background:var(--soft);color:var(--ink)}
+.iconbtn:hover,.iconbtn.on{background:var(--soft);color:var(--ink)}
 
 /* статистика */
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
@@ -284,6 +285,117 @@ input[type=text].blank.no{border-color:var(--bad);background:var(--bad-soft)}
   .crow>div:nth-child(3){grid-column:1;padding-top:10px;flex-direction:row!important;justify-content:space-between;align-items:center!important}
 }
 </style>
+<style>
+/* заучивание: раунды с выбором ответа */
+.learn{max-width:640px;margin:0 auto;width:100%}
+.lhead{display:grid;grid-template-columns:48px 1fr 48px;align-items:center;gap:8px}
+.lhead b{text-align:center;font-size:17px;font-weight:800}
+.roundbtn{appearance:none;width:48px;height:48px;border-radius:99px;border:2px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;display:inline-grid;place-items:center}
+.roundbtn:hover{border-color:var(--pri)}
+.ltrack{display:flex;align-items:center;gap:10px;padding:16px 0 6px}
+.lsegs{position:relative;flex:1 1 auto;display:flex;gap:8px;min-width:0}
+.lseg{flex:1 1 0;height:14px;border-radius:99px;background:var(--line);overflow:hidden}
+.lseg i{display:block;height:100%;background:var(--good);border-radius:99px}
+.lmark,.lend{min-width:40px;height:40px;padding:0 8px;border-radius:99px;display:grid;place-items:center;font-weight:800;font-size:15px}
+.lmark{position:absolute;top:50%;transform:translate(-50%,-50%);background:var(--good);color:var(--surface);box-shadow:0 0 0 4px var(--bg)}
+.lmark .ico{position:absolute;left:50%;bottom:78%;transform:translateX(-50%);font-size:24px;color:#F5A700;opacity:0}
+.lend{flex:none;background:var(--soft);color:var(--muted)}
+.ltrack.hot .lmark{background:var(--hl);color:var(--hl-ink)}
+.ltrack.hot .lmark .ico{opacity:1}
+.ltrack.hot .lseg i{background:var(--hl)}
+.ltrack.miss .lmark{background:var(--bad)}
+.lq{font-size:clamp(20px,3.6vw,26px);font-weight:600;min-height:150px;display:flex;align-items:center;padding:16px 0;overflow-wrap:anywhere}
+.lfb{font-weight:800;color:var(--muted);min-height:24px}
+.lfb.ok{color:var(--good)} .lfb.no{color:var(--bad)}
+.lopts{display:flex;flex-direction:column;gap:12px}
+.lopt{appearance:none;text-align:left;padding:16px 18px;min-height:60px;border-radius:14px;border:2px solid var(--line);background:transparent;color:var(--ink);cursor:pointer;font-weight:600;font-size:16px;display:flex;gap:12px;align-items:center;overflow-wrap:anywhere}
+.lopt:hover:not(:disabled){border-color:var(--pri)}
+.lopt:disabled,div.lopt{cursor:default}
+.lopt .ico{font-size:19px}
+.lopt.ok,.lopt.show{border-color:var(--good)} .lopt.show{border-style:dashed}
+.lopt.ok .ico,.lopt.show .ico{color:var(--good)}
+.lopt.no{border-color:var(--bad)} .lopt.no .ico{color:var(--bad)}
+.lterm{background:var(--surface);border:2px solid var(--line);border-radius:16px;padding:16px 18px;display:flex;flex-direction:column;gap:10px;overflow-wrap:anywhere}
+.lterm>div:first-child{font-weight:700}
+.llabels{display:flex;justify-content:space-between;font-weight:800;font-size:14px}
+.llabels span:first-child{color:var(--good)} .llabels span:last-child{color:var(--muted)}
+/* продолжить учёбу и группы колод */
+.cont{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:4px}
+.ccard{flex:0 0 min(420px,88%);scroll-snap-align:start;background:var(--surface);border:2px solid var(--line);border-radius:20px;padding:20px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.ccard h3{overflow-wrap:anywhere}
+.gh{font-size:14px;color:var(--muted)}
+.star{flex:none}
+.star.on{color:#F5A700}
+.star.on svg{fill:currentColor}
+.pill.err{background:var(--bad-soft);color:var(--bad);flex:none}
+@media(max-width:420px){.logo{font-size:0;gap:0}.lq{min-height:96px}}
+/* нижняя панель на телефоне */
+.tabbar{display:none}
+@media(max-width:560px){
+  .tabbar{display:flex;position:fixed;z-index:9;left:max(12px,env(safe-area-inset-left,0px));right:max(12px,env(safe-area-inset-right,0px));bottom:calc(10px + env(safe-area-inset-bottom,0px));gap:10px;align-items:center;pointer-events:none}
+  .tabs{pointer-events:auto;display:flex;gap:4px;padding:5px;border-radius:99px;background:var(--surface);border:2px solid var(--line);box-shadow:var(--shadow)}
+  .tab{appearance:none;border:0;background:transparent;color:var(--muted);border-radius:99px;padding:5px 18px;min-height:48px;display:flex;flex-direction:column;align-items:center;font-size:11px;font-weight:800;cursor:pointer}
+  .tab.on{background:var(--soft);color:var(--ink)}
+  .fab{pointer-events:auto;margin-left:auto;width:58px;height:58px;border-radius:99px;border:0;background:var(--pri);color:#fff;font-size:30px;line-height:1;cursor:pointer;box-shadow:var(--shadow)}
+  .navlink,#nav-new{display:none}
+  body{padding-bottom:110px}
+  .toast{bottom:calc(92px + env(safe-area-inset-bottom,0px))}
+  body[data-view="study"] .tabbar{display:none}
+  body[data-view="study"]{padding-bottom:56px}
+  body[data-view="study"] .toast{bottom:calc(20px + env(safe-area-inset-bottom,0px))}
+}
+</style>
+<style>
+/* FSRS, настройки, тест и прочие дополнения */
+.flabel{font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+select{padding:10px 12px;border-radius:12px;border:2px solid var(--line);background:var(--bg);font-weight:600;min-height:44px;max-width:100%}
+select:focus{outline:none;border-color:var(--pri)}
+.cardbar{display:flex;gap:6px;align-items:center;min-height:40px;flex-wrap:wrap}
+.cardbar .pill{overflow-wrap:anywhere}
+.pill.mem{background:var(--good-soft);color:var(--good)}
+.pill.mem.low,.pill.lrn{background:var(--warn-soft);color:var(--warn)}
+.mbar{display:flex;gap:2px;height:12px;border-radius:99px;overflow:hidden;background:var(--soft)}
+.mbar i{display:block;min-width:4px;flex:1 1 0}
+.mt-n{background:var(--line)} .mt-l{background:var(--hl)} .mt-y{background:var(--pri-text)} .mt-m{background:var(--good)}
+.legend b{color:var(--ink)}
+.heatwrap{display:flex;gap:8px;overflow-x:auto;padding:3px}
+.heatdays{display:grid;grid-template-rows:repeat(7,14px);gap:3px;font-size:10px;line-height:14px;color:var(--muted)}
+.heat{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,14px);grid-auto-columns:14px;gap:3px;width:max-content}
+.heat i{display:block;border-radius:4px;background:var(--soft)}
+.heat i.h1{background:color-mix(in srgb,var(--pri-text) 30%,var(--soft))}
+.heat i.h2{background:color-mix(in srgb,var(--pri-text) 55%,var(--soft))}
+.heat i.h3{background:color-mix(in srgb,var(--pri-text) 78%,var(--soft))}
+.heat i.h4{background:var(--pri-text)}
+.heat i.off{visibility:hidden}
+.heat i.today{outline:2px solid var(--ink);outline-offset:1px}
+.ring{width:120px;height:120px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--good) calc(var(--p) * 1%),var(--soft) 0)}
+.ring b{width:92px;height:92px;border-radius:50%;background:var(--surface);display:grid;place-items:center;font-size:26px;font-weight:800}
+.tfans{padding:14px 16px;border-radius:14px;background:var(--bg);border:2px dashed var(--line);font-weight:600;overflow-wrap:anywhere}
+.range{width:100%;accent-color:var(--pri);min-height:32px}
+.bigval{font-size:28px;font-weight:800;line-height:1}
+.curve{width:100%;max-width:560px;height:auto;display:block}
+.curve text{font:600 11px var(--f-body);fill:var(--muted)}
+.curve .ax{stroke:var(--line);stroke-width:1;fill:none}
+.curve .ln{stroke:var(--pri-text);stroke-width:2.5;fill:none}
+.curve .th{stroke:var(--bad);stroke-width:1.5;stroke-dasharray:4 4;fill:none}
+.curve .dot{fill:var(--bad)}
+.curve .lab{fill:var(--ink);font-weight:800}
+.pen{color:var(--bad);font-weight:800;min-width:44px}
+.more.set>summary{font-size:15px;color:var(--ink)}
+.more.set[open]>summary{margin-bottom:16px}
+.check{display:flex;gap:10px;align-items:center;cursor:pointer}
+.check input{width:18px;height:18px;accent-color:var(--pri);flex:none}
+.linkbtn{appearance:none;border:0;background:none;padding:0;color:var(--pri-text);font-weight:700;cursor:pointer;text-decoration:underline}
+@media(max-width:560px){
+  .modes{grid-template-columns:1fr 1fr;gap:10px}
+  .mode{min-height:0;padding:12px;min-width:0;overflow-wrap:anywhere}
+  .mode b{font-size:15px}
+  .mode .ico{width:36px;height:36px;border-radius:10px}
+}
+.confetti{position:fixed;inset:0;pointer-events:none;z-index:30;overflow:hidden}
+.confetti i{position:absolute;top:-16px;width:9px;height:14px;border-radius:2px;animation:confetti 2s cubic-bezier(.2,.6,.4,1) forwards}
+@keyframes confetti{to{transform:translate(var(--dx),105vh) rotate(var(--rot))}}
+</style>
 <header class="nav">
   <div class="in">
     <button class="logo" id="logo" type="button" aria-label="Зубрилка, на главную"><i id="logo-mark"></i>Зубрилка</button>
@@ -293,6 +405,7 @@ input[type=text].blank.no{border-color:var(--bad);background:var(--bad-soft)}
     <div class="tools">
       <button class="iconbtn" id="theme-btn" type="button"></button>
       <button class="iconbtn" id="sound-btn" type="button"></button>
+      <button class="iconbtn" id="set-btn" type="button"></button>
     </div>
     <button class="btn pri sm" id="nav-new" type="button" aria-label="Создать колоду">+<span class="lg">&nbsp;Создать</span></button>
   </div>
@@ -302,6 +415,7 @@ input[type=text].blank.no{border-color:var(--bad);background:var(--bad-soft)}
   <p class="sync" id="sync" role="status"></p>
 </div>
 <div class="toast" id="toast" hidden role="status"></div>
+<nav class="tabbar" id="tabbar" aria-label="Разделы"><div class="tabs"><button class="tab" id="tab-home" type="button"></button><button class="tab" id="tab-stats" type="button"></button></div><button class="fab" id="tab-new" type="button" aria-label="Создать колоду">+</button></nav>
 <script>
 /* ===== утилиты ===== */
 const $ = (s) => document.querySelector(s);
@@ -392,36 +506,103 @@ function rich(text) {
   return box;
 }
 
-/* ===== интервальное повторение (вариант SM-2) ===== */
-// карточка: f — лицо, b — оборот, e — лёгкость, i — интервал (дни), r — повторы, l — провалы, d — срок (мс), s — n новая / l учится / r в графике
-const newCard = (f, b) => ({ id: uid(), f, b, e: 2.5, i: 0, r: 0, l: 0, d: 0, s: 'n' });
-function sched(c, g, now) {
-  let { e, i, r, l } = c, s = 'r', d;
-  if (c.s === 'n' || c.s === 'l') {
-    if (g === 0) { s = 'l'; d = now + 60e3; i = 0; }
-    else if (g === 1) { s = 'l'; d = now + 6 * 60e3; i = 0; }
-    else if (g === 2) { i = 1; r = 1; d = dayStart(now, 1); }
-    else { i = 3; r = 1; e += 0.15; d = dayStart(now, 3); }
-  } else if (g === 0) { l++; e = Math.max(1.3, e - 0.2); i = 0; s = 'l'; d = now + 10 * 60e3; }
-  else if (g === 1) { e = Math.max(1.3, e - 0.15); i = Math.max(1, Math.round(i * 1.2)); r++; d = dayStart(now, i); }
-  else if (g === 2) { i = Math.max(i + 1, Math.round(i * e)); r++; d = dayStart(now, i); }
-  else { e += 0.15; i = Math.max(i + 2, Math.round(i * e * 1.3)); r++; d = dayStart(now, i); }
-  return { e, i, r, l, d, s };
+/* ===== интервальное повторение: FSRS-5 =====
+   Память о карточке описывают две величины: S — стабильность (через сколько дней шанс вспомнить упадёт до 90%) и D — сложность (1–10).
+   Шанс вспомнить через t дней: R = (1 + 19/81 · t/S)^-0.5. Следующий показ назначается на день, когда R опустится до целевого уровня. */
+// карточка: f — лицо, b — оборот, S, D, lr — время последнего ответа (мс), i — интервал (дни), r — успешные повторы, l — провалы, d — срок (мс), s — n новая / l учится / r в графике.
+// У карточек со старым расписанием вместо S и D хранится лёгкость e: память для них оценивается по интервалу и пересчитывается при первом ответе.
+const newCard = (f, b) => ({ id: uid(), f, b, i: 0, r: 0, l: 0, d: 0, s: 'n' });
+const FSRS_W = [0.40255, 1.18385, 3.173, 15.69105, 7.1949, 0.5345, 1.4604, 0.0046, 1.54575, 0.1192, 1.01925, 1.9395, 0.11, 0.29605, 2.2698, 0.2315, 2.9898, 0.51655, 0.6621];
+const F_DECAY = -0.5, F_FACTOR = 19 / 81, S_MIN = 0.01;
+const clampD = (x) => Math.min(10, Math.max(1, x));
+const initS = (G) => Math.max(S_MIN, FSRS_W[G - 1]);
+const initD = (G) => clampD(FSRS_W[4] - Math.exp(FSRS_W[5] * (G - 1)) + 1);
+const retr = (t, S) => Math.pow(1 + F_FACTOR * Math.max(0, t) / S, F_DECAY);
+const nextD = (D, G) => clampD(FSRS_W[7] * initD(4) + (1 - FSRS_W[7]) * (D - FSRS_W[6] * (G - 3) * (10 - D) / 9));
+const recallS = (D, S, R, G) => S * (1 + Math.exp(FSRS_W[8]) * (11 - D) * Math.pow(S, -FSRS_W[9]) * (Math.exp(FSRS_W[10] * (1 - R)) - 1) * (G === 2 ? FSRS_W[15] : 1) * (G === 4 ? FSRS_W[16] : 1));
+const forgetS = (D, S, R) => Math.max(S_MIN, Math.min(S, FSRS_W[11] * Math.pow(D, -FSRS_W[12]) * (Math.pow(S + 1, FSRS_W[13]) - 1) * Math.exp(FSRS_W[14] * (1 - R))));
+const shortS = (S, G) => Math.max(S_MIN, S * Math.exp(FSRS_W[17] * (G - 3 + FSRS_W[18])));
+const ivlFor = (S, ret) => Math.min(36500, Math.max(1, Math.round(S / F_FACTOR * (Math.pow(ret, 1 / F_DECAY) - 1))));
+const round4 = (x) => Math.round(x * 1e4) / 1e4;
+// память карточки: { S, D, lr } или null для новой
+function memOf(c) {
+  if (c.s === 'n') return null;
+  if (c.S > 0 && c.D > 0) return { S: c.S, D: c.D, lr: c.lr || 0 };
+  const D = clampD(5 - ((c.e || 2.5) - 2.5) * 4.2);
+  if (c.s === 'r' && c.i > 0) return { S: c.i, D, lr: c.d - c.i * DAY };
+  return { S: 0.4, D, lr: 0 };
 }
+// шанс вспомнить карточку прямо сейчас (только для карточек в графике)
+function recallNow(c, now) {
+  const m = c.s === 'r' ? memOf(c) : null;
+  return m ? retr((now - m.lr) / DAY, m.S) : null;
+}
+// g — оценка: 0 «Снова», 1 «Трудно», 2 «Хорошо», 3 «Легко»
+function sched(c, g, now) {
+  const G = g + 1, m = memOf(c), ret = cfg().ret, at = (min) => now + min * 60e3;
+  let S, D, s = 'r', d, i = 0, r = c.r || 0, l = c.l || 0;
+  if (!m) {
+    S = initS(G); D = initD(G);
+    if (G === 4) i = ivlFor(S, ret); else { s = 'l'; d = at([1, 6, 10][g]); }
+  } else if (c.s !== 'r') {
+    S = shortS(m.S, G); D = nextD(m.D, G);
+    if (G < 3) { s = 'l'; d = at(G === 1 ? 1 : 6); }
+    else { const good = ivlFor(shortS(m.S, 3), ret); i = G === 3 ? good : Math.max(ivlFor(S, ret), good + 1); }
+  } else {
+    const R = retr((now - m.lr) / DAY, m.S);
+    D = nextD(m.D, G);
+    if (G === 1) { S = forgetS(m.D, m.S, R); l++; s = 'l'; d = at(10); }
+    else {
+      S = recallS(m.D, m.S, R, G);
+      const hard = Math.min(ivlFor(recallS(m.D, m.S, R, 2), ret), ivlFor(recallS(m.D, m.S, R, 3), ret));
+      const good = Math.max(ivlFor(recallS(m.D, m.S, R, 3), ret), hard + 1);
+      i = G === 2 ? hard : G === 3 ? good : Math.max(ivlFor(S, ret), good + 1);
+    }
+  }
+  if (s === 'r') { r++; d = dayStart(now, i); }
+  return { S: round4(S), D: round4(D), lr: now, i, r, l, d, s };
+}
+const fmtIvl = (days) => (days >= 365 ? String(Math.round(days / 36.5) / 10).replace('.', ',') + ' г' : days >= 60 ? Math.round(days / 30) + ' мес' : days + ' д');
 function previewLabel(c, g, now) {
   const n = sched(c, g, now);
-  if (n.s === 'l') { const m = Math.max(1, Math.round((n.d - now) / 60e3)); return m + ' мин'; }
-  const days = Math.round((n.d - sod(now)) / DAY);
-  return days >= 30 ? Math.round(days / 30) + ' мес' : days + ' д';
+  return n.s === 'l' ? Math.max(1, Math.round((n.d - now) / 60e3)) + ' мин' : fmtIvl(n.i);
 }
-const NEW_PER_SESSION = 20;
-const dueOf = (deck, now = Date.now()) => deck.cards.filter((c) => c.s !== 'n' && c.d <= now).sort((a, b) => a.d - b.d);
+const todayRec = (make) => { const k = dayKey(Date.now()); return state.meta.days[k] || (make ? (state.meta.days[k] = { n: 0, ok: 0 }) : {}); };
+// сколько новых карточек ещё можно начать сегодня
+const newLeft = () => Math.max(0, cfg().nw - (todayRec().nw || 0));
+function rate(deck, c, g, now = Date.now()) {
+  if (c.s === 'n') { const t = todayRec(true); t.nw = (t.nw || 0) + 1; metaDirty = true; }
+  Object.assign(c, sched(c, g, now)); touch(deck);
+}
+// сначала карточки на коротких шагах, затем те, что ближе всего к забыванию
+const dueOf = (deck, now = Date.now()) => deck.cards.filter((c) => c.s !== 'n' && c.d <= now)
+  .map((c) => [c.s === 'l' ? -2 + c.d / 1e14 : recallNow(c, now), c]).sort((a, b) => a[0] - b[0]).map((x) => x[1]);
 const newOf = (deck) => deck.cards.filter((c) => c.s === 'n');
-const learnedOf = (deck) => deck.cards.filter((c) => c.s === 'r' && c.i >= 21).length;
+const learnedOf = (deck) => deck.cards.filter((c) => c.s === 'r' && memOf(c).S >= 21).length;
+function maturity(cards) {
+  const m = { n: 0, l: 0, y: 0, m: 0 };
+  cards.forEach((c) => { if (c.s === 'n') m.n++; else if (c.s === 'l') m.l++; else if (memOf(c).S >= 21) m.m++; else m.y++; });
+  return m;
+}
+function memAvg(cards, now = Date.now()) {
+  let sum = 0, n = 0;
+  cards.forEach((c) => { if (c.s === 'r') { sum += recallNow(c, now); n++; } });
+  return n ? sum / n : null;
+}
+function cardStatus(c, now) {
+  if (c.s === 'n') return 'новая';
+  if (c.s === 'l') return 'учится';
+  const days = Math.round((sod(c.d) - sod(now)) / DAY);
+  return (days <= 0 ? 'пора повторить' : 'через ' + fmtIvl(days)) + ' · память ' + Math.round(recallNow(c, now) * 100) + '%';
+}
 
 /* ===== состояние и хранение ===== */
 const LS = 'zubrilka.v1';
 let state = { decks: [], meta: { seeded: false, days: {} }, cloud: false };
+// настройки обучения, общие для всех устройств: ret — целевое запоминание, nw — новых карточек в день, t — время правки
+const cleanCfg = (c) => ({ ret: c && c.ret >= 0.7 && c.ret <= 0.97 ? c.ret : 0.9, nw: c && c.nw >= 0 && c.nw <= 200 ? Math.round(c.nw) : 20, t: c && c.t > 0 ? c.t : 0 });
+const cfg = () => state.meta.cfg || (state.meta.cfg = cleanCfg(null));
+function setCfg(patch) { Object.assign(cfg(), patch, { t: Date.now() }); touchMeta(); }
 let mode = 'local', ref = null;
 const dirty = new Set(), delQ = new Set();
 let metaDirty = false, flushTimer = null, chain = Promise.resolve();
@@ -436,7 +617,7 @@ function saveLocal() {
 }
 function loadLocal() { try { const s = JSON.parse(localStorage.getItem(LS) || 'null'); if (s && Array.isArray(s.decks)) { s.meta = s.meta || { seeded: false, days: {} }; return s; } } catch (e) { /* пусто */ } return null; }
 const deckDoc = (d) => { const { id, ...doc } = d; return doc; };
-const metaDoc = () => { const days = {}; Object.keys(state.meta.days).sort().slice(-800).forEach((k) => { days[k] = state.meta.days[k]; }); return { seeded: !!state.meta.seeded, days }; };
+const metaDoc = () => { const days = {}; Object.keys(state.meta.days).sort().slice(-800).forEach((k) => { days[k] = state.meta.days[k]; }); return { seeded: !!state.meta.seeded, days, cfg: cleanCfg(state.meta.cfg) }; };
 const clone = (o) => JSON.parse(JSON.stringify(o));
 function touch(deck) { deck.updated = Date.now(); dirty.add(deck.id); persist(); }
 function touchMeta() { metaDirty = true; persist(); }
@@ -507,7 +688,7 @@ function fromCloud(snap) {
   let meta = { seeded: false, days: {} };
   snap.docs.forEach((s) => {
     const data = clone(s.data() || {});
-    if (s.id === 'meta') meta = { seeded: !!data.seeded, days: data.days || {} };
+    if (s.id === 'meta') meta = { seeded: !!data.seeded, days: data.days || {}, cfg: data.cfg ? cleanCfg(data.cfg) : null };
     else if (s.id.indexOf('d_') === 0) decks.push({ ...data, id: s.id.slice(2), name: data.name || 'Без названия', created: data.created || 0, updated: data.updated || 0, cards: data.cards || [] });
   });
   return { decks: decks.sort((a, b) => a.created - b.created), meta };
@@ -535,12 +716,14 @@ function mergeCloud(cloud, keepMissing) {
     if (!days[k] || mine.n > days[k].n) { days[k] = mine; metaDirty = true; }
   });
   if (Object.keys(days).length !== Object.keys(state.meta.days).length) changed = true;
-  state.meta = { seeded: !!(state.meta.seeded || cloud.meta.seeded), days };
+  const myCfg = cleanCfg(state.meta.cfg), theirCfg = cloud.meta.cfg, takeTheirs = !!theirCfg && theirCfg.t > myCfg.t;
+  if (takeTheirs) changed = true; else if (myCfg.t > (theirCfg ? theirCfg.t : 0)) metaDirty = true;
+  state.meta = { seeded: !!(state.meta.seeded || cloud.meta.seeded), days, cfg: takeTheirs ? theirCfg : myCfg };
   return { changed, currentGone: view.id != null && replaced.has(view.id) };
 }
 function refreshAfterSync(res) {
   renderStats();
-  if (view.n === 'home' || view.n === 'stats') { if (res.changed) render(); return; }
+  if (view.n === 'home' || view.n === 'stats' || view.n === 'settings') { if (res.changed) render(); return; }
   if (res.currentGone) { toast('Колода изменилась на другом устройстве. Показываю новую версию.'); render(); }
 }
 async function syncFromCloud() {
@@ -597,6 +780,7 @@ window.addEventListener('online', () => { if (ref) syncFromCloud(); });
 function logReview(ok, deck) {
   const k = dayKey(Date.now()), d = state.meta.days[k] || (state.meta.days[k] = { n: 0, ok: 0 });
   d.n++; if (ok) d.ok++;
+  if (d.n === (prefs.goal || 20)) { toast('Цель дня выполнена: ' + d.n + ' ответов. Так держать!'); confetti(); }
   deck.n = (deck.n || 0) + 1; if (ok) deck.ok = (deck.ok || 0) + 1;
   touch(deck); touchMeta();
 }
@@ -622,7 +806,15 @@ const ICONS = {
   ladder: '<svg viewBox="0 0 24 24"><path d="M4 20h5v-5h5v-5h6"/><path d="M16 6l4 4-4 4"/></svg>',
   bolt: '<svg viewBox="0 0 24 24"><path d="M13 3L5 14h6l-1 7 8-11h-6z"/></svg>',
   cloze: '<svg viewBox="0 0 24 24"><path d="M3 7h6M15 7h6M3 12h18M3 17h9"/><path d="M11 5.5v3M13 5.5v3" /></svg>',
-  build: '<svg viewBox="0 0 24 24"><rect x="3" y="14" width="8" height="6" rx="1.5"/><rect x="13" y="14" width="8" height="6" rx="1.5"/><rect x="8" y="5" width="8" height="6" rx="1.5"/></svg>'
+  build: '<svg viewBox="0 0 24 24"><rect x="3" y="14" width="8" height="6" rx="1.5"/><rect x="13" y="14" width="8" height="6" rx="1.5"/><rect x="8" y="5" width="8" height="6" rx="1.5"/></svg>',
+  learn: '<svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-3-6.2"/><path d="M9 11.5l3 3 8-9"/></svg>',
+  close: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  check: '<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg>',
+  gear: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
+  undo: '<svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>',
+  home: '<svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg>',
+  chart: '<svg viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>',
+  star: '<svg viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.8z"/></svg>'
 };
 const icon = (n) => { const s = document.createElement('span'); s.className = 'ico'; s.innerHTML = ICONS[n] || ''; return s; };
 $('#logo-mark').innerHTML = ICONS.cards;
@@ -639,7 +831,9 @@ function drawTools() {
   const dark = isDark();
   setIconBtn($('#theme-btn'), dark ? 'sun' : 'moon', dark ? 'Включить светлую тему' : 'Включить тёмную тему');
   setIconBtn($('#sound-btn'), prefs.sound ? 'soundOn' : 'soundOff', prefs.sound ? 'Выключить звук' : 'Включить звук');
+  setIconBtn($('#set-btn'), 'gear', 'Настройки');
 }
+$('#set-btn').addEventListener('click', () => go({ n: 'settings' }));
 function applyTheme() { if (prefs.theme && root.dataset.theme !== prefs.theme) root.dataset.theme = prefs.theme; drawTools(); }
 $('#theme-btn').addEventListener('click', () => {
   const next = isDark() ? 'light' : 'dark', system = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
@@ -682,10 +876,14 @@ applyTheme();
 
 /* ===== навигация ===== */
 let view = { n: 'home' }, reverse = !!prefs.reverse, keyHandler = null, tick = null, draftName = '';
-document.addEventListener('keydown', (e) => { if (keyHandler) keyHandler(e); });
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && (view.n === 'study' || view.n === 'review')) return go(view.n === 'review' ? { n: 'home' } : { n: 'deck', id: view.id });
+  if (keyHandler) keyHandler(e);
+});
 function go(v) {
   view = v;
-  if (v.n === 'study' && v.mode !== 'sprint') { const d = state.decks.find((x) => x.id === v.id); if (d && (v.mode !== 'srs' || dueOf(d).length || newOf(d).length)) playSound('start'); }
+  if (v.n === 'review') playSound('start');
+  else if (v.n === 'study' && v.mode !== 'sprint') { const d = state.decks.find((x) => x.id === v.id); if (d && (v.mode !== 'srs' || dueOf(d).length || newOf(d).length)) playSound('start'); }
   render(); window.scrollTo(0, 0);
 }
 function renderStats() {
@@ -697,23 +895,31 @@ function renderStats() {
 $('#nav-home').addEventListener('click', () => go({ n: 'home' }));
 $('#nav-stats').addEventListener('click', () => go({ n: 'stats' }));
 $('#nav-new').addEventListener('click', () => go({ n: 'home', adding: true }));
+$('#tab-home').append(icon('home'), 'Главная'); $('#tab-stats').append(icon('chart'), 'Статистика');
+$('#tab-home').addEventListener('click', () => go({ n: 'home' }));
+$('#tab-stats').addEventListener('click', () => go({ n: 'stats' }));
+$('#tab-new').addEventListener('click', () => go({ n: 'home', adding: true }));
 function render() {
   keyHandler = null; clearInterval(tick);
   renderStats();
-  [['#nav-home', 'home'], ['#nav-stats', 'stats']].forEach(([sel, n]) => {
+  stopSpeech();
+  document.body.dataset.view = view.n === 'review' ? 'study' : view.n;
+  [['#nav-home', 'home'], ['#nav-stats', 'stats'], ['#tab-home', 'home'], ['#tab-stats', 'stats'], ['#set-btn', 'settings']].forEach(([sel, n]) => {
     $(sel).classList.toggle('on', view.n === n);
     if (view.n === n) $(sel).setAttribute('aria-current', 'page'); else $(sel).removeAttribute('aria-current');
   });
   const app = $('#app'); app.replaceChildren();
   if (view.n === 'home') return app.append(homeView());
   if (view.n === 'stats') return app.append(statsView());
+  if (view.n === 'settings') return app.append(settingsView());
+  if (view.n === 'review') return app.append(srsView(state.decks.slice(), true));
   const d = state.decks.find((x) => x.id === view.id);
   if (!d) { view = { n: 'home' }; return render(); }
   app.append(view.n === 'deck' ? deckView(d) : studyView(d));
 }
 $('#logo').addEventListener('click', () => go({ n: 'home' }));
 const back = (to, label) => h('button', { class: 'btn ghost sm', type: 'button', onclick: () => go(to) }, icon('back'), label);
-const dueText = (d) => { const n = dueOf(d).length, w = Math.min(NEW_PER_SESSION, newOf(d).length); return { n, w }; };
+const dueText = (d) => { const n = dueOf(d).length, w = Math.min(newLeft(), newOf(d).length); return { n, w }; };
 
 function chipGroup(label, items, cur, onPick) {
   const btns = items.map(([k, t]) => h('button', { class: 'fchip', type: 'button', 'aria-pressed': String(k === cur), onclick: () => {
@@ -724,8 +930,9 @@ function chipGroup(label, items, cur, onPick) {
 let tagFilter = null;
 
 /* ===== главная ===== */
+let deckQuery = '';
 function homeView() {
-  const root = h('div', { class: 'stack' });
+  const root = h('div', { class: 'stack' }), now = Date.now();
   const nameIn = h('input', { type: 'text', id: 'new-deck-name', value: draftName, placeholder: 'Например: Английский, неделя 5', maxLength: 80 });
   nameIn.addEventListener('input', () => { draftName = nameIn.value; });
   const create = () => {
@@ -738,13 +945,35 @@ function homeView() {
     h('div', { class: 'field' }, h('label', { for: 'new-deck-name', text: 'Название колоды' }), nameIn),
     h('div', { class: 'row' }, h('button', { class: 'btn pri', type: 'button', onclick: create }, 'Создать'),
       h('button', { class: 'btn ghost', type: 'button', onclick: () => { form.hidden = true; view.adding = false; draftName = ''; nameIn.value = ''; } }, 'Отмена')));
-  const sumDue = state.decks.reduce((s, d) => s + dueOf(d).length, 0), sumNew = state.decks.reduce((s, d) => s + Math.min(NEW_PER_SESSION, newOf(d).length), 0);
-  const target = state.decks.find((d) => dueOf(d).length) || state.decks.find((d) => newOf(d).length);
-  if (target) root.append(h('div', { class: 'hero' }, h('div', { class: 'grow' }, h('h2', { text: 'Пора повторять' }),
-    h('p', { text: 'К повторению: ' + sumDue + ' · новых карточек: ' + sumNew + '. Начнём с колоды «' + target.name + '».' })),
-    h('button', { class: 'btn hl', type: 'button', onclick: () => go({ n: 'study', id: target.id, mode: 'srs' }) }, 'Начать')));
-  else if (state.decks.length) root.append(h('div', { class: 'hero calm' }, h('div', { class: 'grow' }, h('h2', { text: 'На сегодня всё' }),
-    h('p', { text: 'Следующие карточки уже стоят в графике. Загляните позже или потренируйтесь в режимах «Тест» и «Подбор».' }))));
+  const sumDue = state.decks.reduce((s, d) => s + dueOf(d, now).length, 0), sumNew = Math.min(newLeft(), state.decks.reduce((s, d) => s + newOf(d).length, 0));
+  if (sumDue + sumNew) {
+    const mins = Math.max(1, Math.round((sumDue + sumNew) * 9 / 60));
+    root.append(h('div', { class: 'hero' }, h('div', { class: 'grow' }, h('h2', { text: 'Пора повторять' }),
+      h('p', { text: 'К повторению: ' + sumDue + ' · новых: ' + sumNew + ' · примерно ' + mins + ' мин. Первыми идут карточки, которые вы вот-вот забудете.' })),
+      h('button', { class: 'btn hl', type: 'button', onclick: () => go({ n: 'review' }) }, 'Повторить всё')));
+  } else if (state.decks.length) root.append(h('div', { class: 'hero calm' }, h('div', { class: 'grow' }, h('h2', { text: 'На сегодня всё' }),
+    h('p', { text: (nextDue(state.decks) || 'Карточек в графике пока нет.') + ' Пока можно потренироваться в режимах «Тест», «Подбор» или «Спринт».' }))));
+  if (state.decks.length) {
+    const today = (state.meta.days[dayKey(now)] || {}).n || 0;
+    const gBar = h('i'), gTxt = h('span', { class: 'muted small' }), gTitle = h('b', { class: 'grow' });
+    const drawGoal = () => {
+      const g = prefs.goal || 20;
+      gBar.style.width = Math.min(100, today / g * 100) + '%';
+      gTxt.textContent = today + ' из ' + g + ' ' + plural(g, 'ответа', 'ответов', 'ответов');
+      gTitle.textContent = today >= g ? 'Цель дня выполнена' : 'Цель дня';
+    };
+    drawGoal();
+    root.append(h('div', { class: 'panel stack', style: 'gap:12px' }, h('div', { class: 'row' }, gTitle, gTxt), h('div', { class: 'bar' }, gBar),
+      chipGroup('Цель на день, ответов', [[10, '10'], [20, '20'], [30, '30'], [50, '50']], prefs.goal || 20, (k) => { prefs.goal = k; savePrefs(); drawGoal(); })));
+  }
+  const inLearn = state.decks.filter((d) => { const p = learnProgress(d); return d.learn && p.tot >= 2 && p.done < p.tot && (p.done > 0 || d.learn.r > 1); })
+    .sort((a, b) => (b.updated || 0) - (a.updated || 0)).slice(0, 4);
+  if (inLearn.length) root.append(h('h2', { text: 'Продолжить учёбу' }), h('div', { class: 'cont' }, inLearn.map((d) => {
+    const p = learnProgress(d);
+    return h('div', { class: 'ccard' }, h('div', {}, h('span', { class: 'pill', text: 'Заучивание · раунд ' + d.learn.r })), h('h3', { text: d.name }),
+      h('div', { class: 'bar' }, h('i', { style: 'width:' + p.pct + '%' })), h('span', { class: 'muted small', text: p.pct + '% карточек пройдено' }),
+      h('button', { class: 'btn pri', type: 'button', onclick: () => go({ n: 'study', id: d.id, mode: 'learn' }) }, 'Продолжить'));
+  })));
   root.append(h('h2', { text: 'Мои колоды' }), form);
   if (view.adding) setTimeout(() => nameIn.focus(), 0);
   if (!state.decks.length) {
@@ -752,18 +981,33 @@ function homeView() {
   } else {
     const allTags = [...new Set(state.decks.flatMap((d) => d.tags || []))].sort((a, b) => a.localeCompare(b, 'ru'));
     if (!allTags.includes(tagFilter)) tagFilter = null;
-    const grid = h('div', { class: 'decks' });
-    const drawDecks = () => grid.replaceChildren(...state.decks.filter((d) => !tagFilter || (d.tags || []).includes(tagFilter)).map((d) => {
-      const { n, w } = dueText(d), tot = d.cards.length, pct = tot ? Math.round(learnedOf(d) / tot * 100) : 0;
+    const grid = h('div', { class: 'stack' });
+    const deckCard = (d) => {
+      const { n, w } = dueText(d), tot = d.cards.length, pct = tot ? Math.round(learnedOf(d) / tot * 100) : 0, mem = memAvg(d.cards, now);
       return h('button', { class: 'deck', type: 'button', onclick: () => go({ n: 'deck', id: d.id }) },
         h('h3', { text: d.name }),
         h('div', { class: 'pills' }, h('span', { class: 'pill', text: tot + ' ' + plural(tot, 'термин', 'термина', 'терминов') }),
+          mem == null ? null : h('span', { class: 'pill mem' + (mem < cfg().ret - 0.1 ? ' low' : ''), title: 'Средний шанс вспомнить карточки этой колоды прямо сейчас', text: 'память ' + Math.round(mem * 100) + '%' }),
           (d.tags || []).map((t) => h('span', { class: 'pill t', text: t }))),
-        h('div', { class: 'bar', style: 'margin-top:auto', title: 'Выучено: ' + pct + '%' }, h('i', { style: 'width:' + pct + '%' })),
+        h('div', { class: 'bar', style: 'margin-top:auto', title: 'Закреплено: ' + pct + '%' }, h('i', { style: 'width:' + pct + '%' })),
         h('div', { class: 'row' }, n ? h('span', { class: 'tag', text: 'повторить: ' + n }) : null,
           h('span', { class: 'due' + (n || w ? '' : ' zero'), text: w ? 'новых: ' + w : (n ? '' : 'на сегодня всё') })));
-    }));
+    };
+    const drawDecks = () => {
+      const t = Date.now(), q = norm(deckQuery), groups = [['Сегодня', []], ['На этой неделе', []], ['Раньше', []]];
+      state.decks.filter((d) => (!tagFilter || (d.tags || []).includes(tagFilter)) && (!q || norm(d.name).includes(q) || d.cards.some((c) => norm(plain(c.f) + ' ' + plain(c.b)).includes(q))))
+        .sort((a, b) => (b.updated || 0) - (a.updated || 0))
+        .forEach((d) => groups[(d.updated || 0) >= sod(t) ? 0 : (d.updated || 0) >= t - 7 * DAY ? 1 : 2][1].push(d));
+      const shown = groups.filter((g) => g[1].length);
+      grid.replaceChildren(...(shown.length ? shown.flatMap(([title, ds]) => [h('h3', { class: 'gh', text: title }), h('div', { class: 'decks' }, ds.map(deckCard))])
+        : [h('div', { class: 'empty' }, 'Ничего не нашлось. Измените запрос или выберите другую категорию.')]));
+    };
     drawDecks();
+    if (state.decks.length >= 4) {
+      const searchIn = h('input', { type: 'text', id: 'deck-search', value: deckQuery, placeholder: 'Найти колоду или карточку', 'aria-label': 'Найти колоду или карточку', autocomplete: 'off' });
+      searchIn.addEventListener('input', () => { deckQuery = searchIn.value; drawDecks(); });
+      root.append(searchIn);
+    } else deckQuery = '';
     if (allTags.length) root.append(chipGroup('Фильтр колод по категории', [[null, 'Все'], ...allTags.map((t) => [t, t])], tagFilter, (k) => { tagFilter = k; drawDecks(); }));
     root.append(grid);
   }
@@ -774,14 +1018,17 @@ const SAFE_ID = /^[0-9A-Za-z_-]{1,60}$/;
 const cleanNum = (v, fallback = 0) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : fallback);
 function cleanCard(c) {
   if (!c || typeof c.f !== 'string' || typeof c.b !== 'string' || !c.f.trim() || !c.b.trim()) return null;
-  return { id: typeof c.id === 'string' && SAFE_ID.test(c.id) ? c.id : uid(), f: c.f, b: c.b, e: Math.max(1.3, cleanNum(c.e, 2.5)), i: cleanNum(c.i), r: cleanNum(c.r), l: cleanNum(c.l), d: cleanNum(c.d), s: ['n', 'l', 'r'].includes(c.s) ? c.s : 'n' };
+  const fsrs = cleanNum(c.S) > 0 && cleanNum(c.D) > 0 ? { S: c.S, D: clampD(c.D), lr: cleanNum(c.lr) } : cleanNum(c.e) ? { e: Math.max(1.3, c.e) } : {};
+  return { id: typeof c.id === 'string' && SAFE_ID.test(c.id) ? c.id : uid(), f: c.f, b: c.b, ...fsrs, i: cleanNum(c.i), r: cleanNum(c.r), l: cleanNum(c.l), d: cleanNum(c.d), s: ['n', 'l', 'r'].includes(c.s) ? c.s : 'n', ...(c.st ? { st: 1 } : {}) };
 }
 function cleanDeck(nd) {
   if (!nd || !Array.isArray(nd.cards)) return null;
   const seen = new Set(), cards = nd.cards.map(cleanCard).filter(Boolean).map((c) => { if (seen.has(c.id)) c.id = uid(); seen.add(c.id); return c; });
   const best = nd.matchBest && cleanNum(nd.matchBest.s) ? { p: cleanNum(nd.matchBest.p), s: nd.matchBest.s } : null;
   return { id: typeof nd.id === 'string' && SAFE_ID.test(nd.id) ? nd.id : uid(), name: String(nd.name || 'Без названия').slice(0, 80), created: cleanNum(nd.created), updated: cleanNum(nd.updated), cards,
-    n: cleanNum(nd.n), ok: cleanNum(nd.ok), sprint: cleanNum(nd.sprint), matchBest: best, tags: Array.isArray(nd.tags) ? nd.tags.filter((t) => typeof t === 'string').map((t) => t.slice(0, 30)).slice(0, 8) : [] };
+    n: cleanNum(nd.n), ok: cleanNum(nd.ok), sprint: cleanNum(nd.sprint), matchBest: best,
+    ...(nd.learn && typeof nd.learn === 'object' ? { learn: { r: Math.max(1, cleanNum(nd.learn.r, 1)), m: Object.fromEntries(Object.entries(nd.learn.m && typeof nd.learn.m === 'object' ? nd.learn.m : {}).filter(([k, v]) => SAFE_ID.test(k) && (v === 1 || v === 2))) } } : {}), tags: Array.isArray(nd.tags) ? nd.tags.filter((t) => typeof t === 'string').map((t) => t.slice(0, 30)).slice(0, 8) : [],
+    ...(nd.lang && typeof nd.lang === 'object' ? { lang: { f: langOk(nd.lang.f), b: langOk(nd.lang.b) } } : {}) };
 }
 function backupPanel() {
   const file = h('input', { type: 'file', id: 'imp-file', accept: '.json,application/json', hidden: true });
@@ -803,7 +1050,8 @@ function backupPanel() {
         const days = data.meta && data.meta.days;
         if (days && typeof days === 'object') Object.keys(days).forEach((k) => {
           const n = cleanNum(days[k] && days[k].n), ok = cleanNum(days[k] && days[k].ok);
-          if (/^\d{4}-\d\d-\d\d$/.test(k) && n && (!state.meta.days[k] || state.meta.days[k].n < n)) state.meta.days[k] = { n, ok: Math.min(ok, n) };
+          const nw = cleanNum(days[k] && days[k].nw);
+          if (/^\d{4}-\d\d-\d\d$/.test(k) && n && (!state.meta.days[k] || state.meta.days[k].n < n)) state.meta.days[k] = { n, ok: Math.min(ok, n), ...(nw ? { nw } : {}) };
         });
         touchMeta(); toast('Добавлено колод: ' + added + ', обновлено: ' + updated + (same ? ', уже были актуальны: ' + same : '') + '.'); render();
       } catch (e) { toast('Не получилось прочитать файл. Нужна резервная копия Зубрилки (.json).'); }
@@ -869,11 +1117,31 @@ function dataTable(heads, rows) {
       h('thead', {}, h('tr', {}, heads.map((t, i) => h('th', { class: i ? 'num' : null, scope: 'col', text: t })))),
       h('tbody', {}, rows.map((r) => h('tr', {}, r.map((t, i) => h('td', { class: i ? 'num' : null, text: String(t) }))))))));
 }
+function maturityBar(cards) {
+  const m = maturity(cards), parts = [['n', 'Новые', 'mt-n'], ['l', 'Учатся', 'mt-l'], ['y', 'Молодые', 'mt-y'], ['m', 'Закреплённые', 'mt-m']];
+  return h('div', { class: 'stack', style: 'gap:10px' },
+    h('div', { class: 'mbar', role: 'img', 'aria-label': parts.map(([k, t]) => t + ': ' + m[k]).join(', ') }, parts.filter(([k]) => m[k]).map(([k, , cls]) => h('i', { class: cls, style: 'flex-grow:' + m[k] }))),
+    h('div', { class: 'legend' }, parts.map(([k, t, cls]) => h('span', {}, h('i', { class: cls }), t, h('b', { text: String(m[k]) })))));
+}
+function heatmap(goal) {
+  const WEEKS = 17, dow = (new Date().getDay() + 6) % 7, cells = [];
+  let active = 0, best = 0;
+  for (let k = (WEEKS - 1) * 7 + dow; k >= dow - 6; k--) {
+    const t = dayAt(-k), n = k < 0 ? -1 : (state.meta.days[dayKey(t)] || {}).n || 0;
+    if (n > 0) { active++; best = Math.max(best, n); }
+    const lv = n <= 0 ? 0 : n < goal / 2 ? 1 : n < goal ? 2 : n < goal * 2 ? 3 : 4;
+    cells.push(h('i', { class: (n < 0 ? 'off' : 'h' + lv) + (k === 0 ? ' today' : ''), title: n < 0 ? null : shortDate(t) + ': ' + n + ' ' + plural(n, 'ответ', 'ответа', 'ответов') }));
+  }
+  return h('div', { class: 'stack', style: 'gap:10px' },
+    h('div', { class: 'heatwrap' }, h('div', { class: 'heatdays', 'aria-hidden': 'true' }, ['Пн', '', 'Ср', '', 'Пт', '', 'Вс'].map((t) => h('span', { text: t }))),
+      h('div', { class: 'heat', role: 'img', 'aria-label': 'Календарь активности за ' + WEEKS + ' недель: дней с занятиями ' + active }, cells)),
+    h('p', { class: 'muted small', style: 'margin:0', text: 'Дней с занятиями за ' + WEEKS + ' недель: ' + active + (best ? ' · лучший день: ' + best + ' ' + plural(best, 'ответ', 'ответа', 'ответов') : '') + '. Чем темнее клетка, тем ближе день к цели в ' + goal + ' ответов.' }));
+}
 function statsView() {
   const now = Date.now(), days = [];
   for (let off = -29; off <= 0; off++) { const t = dayAt(off), r = state.meta.days[dayKey(t)] || {}; days.push({ t, n: r.n || 0, ok: r.ok || 0 }); }
   const sumN = days.reduce((s, x) => s + x.n, 0), sumOk = days.reduce((s, x) => s + x.ok, 0);
-  const cards = state.decks.flatMap((d) => d.cards), learned = state.decks.reduce((s, d) => s + learnedOf(d), 0), st = streak();
+  const cards = state.decks.flatMap((d) => d.cards), learned = state.decks.reduce((s, d) => s + learnedOf(d), 0), st = streak(), mem = memAvg(cards, now);
   const forecast = Array.from({ length: 14 }, (_, k) => ({ t: dayAt(k), n: 0 }));
   let later = 0;
   cards.forEach((c) => {
@@ -884,6 +1152,8 @@ function statsView() {
   const reviewsWord = (n) => n + ' ' + plural(n, 'повторение', 'повторения', 'повторений');
   const dueCount = forecast.reduce((s, x) => s + x.n, 0);
   const decks = state.decks.map((d) => ({ d, n: d.n || 0, err: d.n ? (d.n - (d.ok || 0)) / d.n : -1 })).sort((a, b) => b.err - a.err);
+  const hard = state.decks.flatMap((d) => d.cards.filter((c) => (c.l || 0) > 0 && c.s !== 'n').map((c) => ({ d, c })))
+    .sort((a, b) => b.c.l - a.c.l || memOf(b.c).D - memOf(a.c).D).slice(0, 8);
   const kpi = (value, label) => h('div', { class: 'kpi' }, h('b', { text: String(value) }), h('span', { text: label }));
   return h('div', { class: 'stack' },
     h('h1', { text: 'Статистика' }),
@@ -891,7 +1161,11 @@ function statsView() {
       kpi(st, plural(st, 'день', 'дня', 'дней') + ' подряд'),
       kpi(sumN, plural(sumN, 'повторение', 'повторения', 'повторений') + ' за 30 дней'),
       kpi(sumN ? Math.round(sumOk / sumN * 100) + '%' : '—', 'верных ответов за 30 дней'),
-      kpi(learned + ' из ' + cards.length, 'карточек выучено (интервал от 21 дня)')),
+      kpi(mem == null ? '—' : Math.round(mem * 100) + '%', 'память сейчас: средний шанс вспомнить карточку из графика'),
+      kpi(learned + ' из ' + cards.length, 'карточек закреплено (держатся в памяти от 21 дня)')),
+    h('section', { class: 'panel stack' },
+      h('h2', { text: 'Активность' }),
+      heatmap(prefs.goal || 20)),
     h('section', { class: 'panel stack' },
       h('h2', { text: 'Повторения за 30 дней' }),
       sumN ? [
@@ -902,7 +1176,7 @@ function statsView() {
         })), [[0, shortDate(days[0].t)], [10, shortDate(days[10].t)], [20, shortDate(days[20].t)], [29, 'сегодня']]),
         dataTable(['День', 'Повторений', 'Верно', 'Ошибок'], days.filter((x) => x.n).reverse().map((x) => [shortDate(x.t), x.n, x.ok, x.n - x.ok]))
       ] : h('div', { class: 'empty' }, 'Пока нет повторений. Пройдите сессию в режиме «Карточки», и здесь появится график.'),
-      h('p', { class: 'muted small', style: 'margin:0', text: 'Считаем ответы в режимах «Карточки» и «Письмо» и пройденные карточки в «Лестнице». Остальные режимы на статистику не влияют.' })),
+      h('p', { class: 'muted small', style: 'margin:0', text: 'Считаем ответы в режимах «Карточки», «Заучивание» и «Письмо» и пройденные карточки в «Лестнице». В «Карточках» ошибкой считается только оценка «Снова». Остальные режимы на статистику не влияют.' })),
     h('section', { class: 'panel stack' },
       h('h2', { text: 'Когда повторять' }),
       dueCount ? [
@@ -912,7 +1186,22 @@ function statsView() {
         })), [[0, 'сегодня'], [7, shortDate(forecast[7].t)], [13, shortDate(forecast[13].t)]]),
         dataTable(['День', 'Карточек'], forecast.filter((x) => x.n).map((x) => [shortDate(x.t), x.n]))
       ] : h('div', { class: 'empty' }, 'Планировать пока нечего. Карточки появятся здесь после первого повторения.'),
-      h('p', { class: 'muted small', style: 'margin:0', text: 'Сколько карточек подойдёт к повторению в ближайшие 14 дней. Просроченные считаем в сегодняшний день, новые не считаем.' + (later ? ' Позже этого срока: ' + later + '.' : '') })),
+      h('p', { class: 'muted small', style: 'margin:0' }, 'Каждая карточка стоит на том дне, когда шанс вспомнить её опустится до ' + Math.round(cfg().ret * 100) + '%. Просроченные считаем в сегодняшний день, новые не считаем.' + (later ? ' Позже этого срока: ' + later + '. ' : ' '),
+        h('button', { class: 'linkbtn', type: 'button', onclick: () => go({ n: 'settings' }) }, 'Изменить уровень'))),
+    h('section', { class: 'panel stack' },
+      h('h2', { text: 'Состояние карточек' }),
+      cards.length ? maturityBar(cards) : h('div', { class: 'empty' }, 'Карточек пока нет.'),
+      h('p', { class: 'muted small', style: 'margin:0', text: 'Молодые карточки держатся в памяти меньше 21 дня, закреплённые дольше. «Учатся» те, что сейчас на коротких шагах в минутах.' })),
+    hard.length ? h('section', { class: 'panel stack' },
+      h('h2', { text: 'Самые трудные карточки' }),
+      h('div', { class: 'tblwrap' }, h('table', { class: 'tbl' },
+        h('thead', {}, h('tr', {}, h('th', { scope: 'col', text: 'Карточка' }), h('th', { scope: 'col', text: 'Колода' }), h('th', { class: 'num', scope: 'col', text: 'Забыта' }), h('th', { class: 'num', scope: 'col', text: 'Сложность' }))),
+        h('tbody', {}, hard.map(({ d, c }) => h('tr', {},
+          h('td', { text: plain(c.f).slice(0, 80) || 'Карточка с картинкой' }),
+          h('td', {}, h('button', { class: 'linkbtn', type: 'button', onclick: () => go({ n: 'deck', id: d.id }) }, d.name)),
+          h('td', { class: 'num', text: c.l + ' ' + plural(c.l, 'раз', 'раза', 'раз') }),
+          h('td', { class: 'num', text: String(Math.round(memOf(c).D * 10) / 10).replace('.', ',') + ' из 10' })))))),
+      h('p', { class: 'muted small', style: 'margin:0', text: 'Сложность оценивает FSRS по вашим ответам. Трудную карточку стоит переформулировать или разбить на две попроще.' })) : null,
     h('section', { class: 'panel stack' },
       h('h2', { text: 'Ошибки по колодам' }),
       decks.length ? h('div', { class: 'tblwrap' }, h('table', { class: 'tbl' },
@@ -921,8 +1210,7 @@ function statsView() {
           const pct = x.n ? Math.round(x.err * 100) : 0;
           return h('tr', {}, h('td', { text: x.d.name }), h('td', { class: 'num', text: String(x.n) }),
             h('td', {}, x.n ? h('div', { class: 'errcell' }, h('div', { class: 'bar err' }, h('i', { style: 'width:' + pct + '%' })), h('b', { text: pct + '%' })) : h('span', { class: 'muted', text: 'нет ответов' })));
-        })))) : h('div', { class: 'empty' }, 'Колод пока нет.'),
-      decks.some((x) => !x.n) ? h('p', { class: 'muted small', style: 'margin:0', text: 'Ответы по колодам считаются начиная с этого обновления. Более ранние ответы к колодам не привязаны.' }) : null));
+        })))) : h('div', { class: 'empty' }, 'Колод пока нет.')));
 }
 
 /* ===== картинки на карточках ===== */
@@ -1132,11 +1420,46 @@ function deckView(d) {
     d.tags = [...new Set(tagsIn.value.split(',').map((t) => t.trim().slice(0, 30)).filter(Boolean))].slice(0, 8);
     tagsIn.value = d.tags.join(', '); touch(d);
   });
-  root.append(h('div', { class: 'row' }, back({ n: 'home' }, 'Колоды'), h('span', { class: 'grow' }), delBtn),
-    nameIn, h('div', { class: 'field' }, h('label', { for: 'deck-tags', text: 'Категории через запятую' }), tagsIn), modesBox, pvBox);
+  const langSel = (side, label) => {
+    const sel = h('select', { id: 'lang-' + side }, LANGS.map(([v, t]) => h('option', { value: v, text: t })));
+    sel.value = sideLang(d, side === 'f');
+    sel.addEventListener('change', () => { d.lang = { f: sideLang(d, true), b: sideLang(d, false), [side]: sel.value }; touch(d); });
+    return h('div', { class: 'field grow' }, h('label', { for: 'lang-' + side, text: label }), sel);
+  };
+  const resetBtn = h('button', { class: 'btn ghost sm', type: 'button' }, 'Сбросить прогресс');
+  let armedReset = false;
+  resetBtn.addEventListener('click', () => {
+    if (!armedReset) { armedReset = true; resetBtn.textContent = 'Точно сбросить? Нажмите ещё раз'; setTimeout(() => { armedReset = false; resetBtn.textContent = 'Сбросить прогресс'; }, 4000); return; }
+    armedReset = false; resetBtn.textContent = 'Сбросить прогресс';
+    const snap = clone({ cards: d.cards, learn: d.learn || null });
+    d.cards.forEach((c) => { ['S', 'D', 'lr', 'e'].forEach((k) => delete c[k]); Object.assign(c, { i: 0, r: 0, l: 0, d: 0, s: 'n' }); });
+    delete d.learn; touch(d); drawList();
+    toast('Прогресс сброшен: все карточки снова новые.', { label: 'Вернуть', run: () => { d.cards = snap.cards; if (snap.learn) d.learn = snap.learn; touch(d); if (root.isConnected) render(); } });
+  });
+  const dupBtn = h('button', { class: 'btn ghost sm', type: 'button', onclick: () => {
+    const nd = { id: uid(), name: (d.name + ' (копия)').slice(0, 80), created: Date.now(), updated: Date.now(), tags: (d.tags || []).slice(), ...(d.lang ? { lang: { ...d.lang } } : {}),
+      cards: d.cards.map((c) => ({ ...newCard(c.f, c.b), ...(c.st ? { st: 1 } : {}) })) };
+    state.decks.push(nd); touch(nd); go({ n: 'deck', id: nd.id }); toast('Копия создана. Прогресс в ней начинается с нуля.');
+  } }, 'Дублировать колоду');
+  const summaryBox = h('div');
+  function drawSummary() {
+    const mem = memAvg(d.cards);
+    summaryBox.replaceChildren(...(d.cards.length ? [h('div', { class: 'panel stack', style: 'gap:12px' },
+      h('div', { class: 'row' }, h('b', { class: 'grow', text: mem == null ? 'Память: в графике пока нет карточек' : 'Память сейчас: ' + Math.round(mem * 100) + '%' }),
+        h('span', { class: 'muted small', text: 'цель ' + Math.round(cfg().ret * 100) + '%' }),
+        h('button', { class: 'linkbtn small', type: 'button', onclick: () => go({ n: 'settings' }) }, 'Настроить')),
+      maturityBar(d.cards))] : []));
+  }
+  root.append(h('div', { class: 'row' }, back({ n: 'home' }, 'Колоды')), nameIn, summaryBox, modesBox, pvBox,
+    h('details', { class: 'more set panel' }, h('summary', { text: 'Настройки колоды' }), h('div', { class: 'stack' },
+      h('div', { class: 'field' }, h('label', { for: 'deck-tags', text: 'Категории через запятую' }), tagsIn),
+      canSpeak ? h('div', { class: 'row', style: 'align-items:flex-start' }, langSel('f', 'Язык озвучки терминов'), langSel('b', 'Язык озвучки определений')) : null,
+      h('div', { class: 'row' }, dupBtn, resetBtn, h('span', { class: 'grow' }), delBtn))));
 
   const revBox = h('input', { type: 'checkbox', id: 'rev', checked: reverse });
   revBox.addEventListener('change', () => { reverse = revBox.checked; prefs.reverse = reverse; savePrefs(); drawPreview(); });
+  const starBox = h('input', { type: 'checkbox', id: 'star-only', checked: starOnly });
+  starBox.addEventListener('change', () => { starOnly = starBox.checked; prefs.starOnly = starOnly; savePrefs(); });
   function drawPreview() {
     const focused = document.activeElement && pvBox.contains(document.activeElement) ? document.activeElement.getAttribute('aria-label') : null;
     pvBox.replaceChildren(); const n = d.cards.length; if (!n) return;
@@ -1162,29 +1485,33 @@ function deckView(d) {
     pvBox.append(stage(scene, Math.min(2, n - 1)), h('div', { class: 'row', style: 'justify-content:center' },
       h('button', { class: 'btn ghost sm', type: 'button', hidden: n < 2, 'aria-label': 'Предыдущая карточка', onclick: step(-1) }, icon('back')),
       h('b', { text: (pi + 1) + ' / ' + n }),
-      h('button', { class: 'btn ghost sm', type: 'button', hidden: n < 2, 'aria-label': 'Следующая карточка', onclick: step(1) }, icon('next'))));
+      h('button', { class: 'btn ghost sm', type: 'button', hidden: n < 2, 'aria-label': 'Следующая карточка', onclick: step(1) }, icon('next')),
+      canSpeak ? h('button', { class: 'btn ghost sm', type: 'button', title: 'Озвучить', 'aria-label': 'Озвучить видимую сторону карточки', onclick: () => speak(isOn() ? aOf(c) : qOf(c), sideLang(d, isOn() ? reverse : !reverse)) }, icon('soundOn')) : null));
     if (focused) { const el = [...pvBox.querySelectorAll('button')].find((b) => b.getAttribute('aria-label') === focused); if (el) el.focus(); }
   }
   function drawModes() {
     const { n, w } = dueText(d), tot = d.cards.length;
+    drawSummary();
     const m = (key, title, desc, min, ic) => h('button', { class: 'mode', type: 'button', disabled: tot < min, onclick: () => go({ n: 'study', id: d.id, mode: key }) }, icon(ic), h('b', { text: title }), h('span', { class: 'muted small', text: tot < min ? 'Нужно карточек: минимум ' + min : desc }));
     modesBox.replaceChildren(h('div', { class: 'stack' },
       h('div', { class: 'modes' },
-        m('srs', 'Карточки', n || w ? 'К повторению: ' + n + ' · новых: ' + w : 'На сегодня всё. Можно зайти позже', 1, 'cards'),
+        m('learn', 'Заучивание', d.learn && learnProgress(d).done ? 'Пройдено ' + learnProgress(d).pct + '% · раунд ' + d.learn.r : 'Раунды с выбором ответа, пока не запомнится всё', 2, 'learn'),
+        m('srs', 'Карточки', n || w ? 'К повторению: ' + n + ' · новых: ' + w : 'На сегодня всё. Карточки вернутся, когда придёт срок', 1, 'cards'),
         m('ladder', 'Лестница', 'От выбора варианта к ответу по памяти', 2, 'ladder'),
         m('write', 'Письмо', 'Введите ответ по памяти', 1, 'write'),
         m('cloze', 'Пропуски', 'Впишите слова, скрытые в ответе', 1, 'cloze'),
         m('build', 'Сборка', 'Соберите ответ из слов или букв', 1, 'build'),
-        m('test', 'Тест', 'Выберите верный вариант', 2, 'test'),
+        m('test', 'Тест', 'Выбор, верно или неверно, письменный ответ', 2, 'test'),
         m('match', 'Подбор', 'Соедините пары на скорость', 2, 'match'),
         m('sprint', 'Спринт', '60 секунд: верна пара или нет', 2, 'bolt')),
-      h('label', { class: 'row small muted', for: 'rev' }, revBox, 'Сначала показывать определение')));
+      h('label', { class: 'check small muted', for: 'rev' }, revBox, 'Сначала показывать определение'),
+      d.cards.filter((c) => c.st).length >= 2 ? h('label', { class: 'check small muted', for: 'star-only' }, starBox, 'Тренировать только избранные (кроме «Карточек» и «Заучивания»)') : null));
   }
   const PAGE = 100;
   let cardFilter = 'all', showLimit = PAGE;
   const searchIn = h('input', { type: 'text', id: 'card-search', placeholder: 'Найти карточку', 'aria-label': 'Найти карточку', autocomplete: 'off' });
   searchIn.addEventListener('input', () => { showLimit = PAGE; drawCards(); });
-  const FILTERS = { all: () => true, new: (c) => c.s === 'n', learn: (c) => c.s === 'l', sched: (c) => c.s === 'r', due: (c) => c.s !== 'n' && c.d <= Date.now() };
+  const FILTERS = { all: () => true, new: (c) => c.s === 'n', learn: (c) => c.s === 'l', sched: (c) => c.s === 'r', due: (c) => c.s !== 'n' && c.d <= Date.now(), star: (c) => !!c.st, hard: (c) => (c.l || 0) >= 3 };
   function drawCards() {
     const q = norm(searchIn.value), tot = d.cards.length;
     const shown = d.cards.filter((c) => FILTERS[cardFilter](c) && (!q || norm(plain(c.f) + ' ' + plain(c.b)).includes(q)));
@@ -1197,10 +1524,11 @@ function deckView(d) {
   }
   function drawList() { drawCards(); drawModes(); drawPreview(); }
   function cardRow(c) {
-    const st = c.s === 'n' ? 'новая' : c.s === 'l' ? 'учится' : 'интервал ' + c.i + ' д';
+    const st = cardStatus(c, Date.now()) + ((c.l || 0) >= 3 ? ' · трудная' : '');
     const row = h('div', { class: 'crow' }, h('div', {}, rich(c.f)), h('div', { class: 'muted' }, rich(c.b)),
       h('div', { class: 'stack', style: 'gap:6px;align-items:flex-end' }, h('span', { class: 'st', text: st }),
         h('div', { class: 'row', style: 'gap:6px' },
+          starBtn(d, c, () => { if (cardFilter === 'star') drawCards(); drawModes(); }),
           h('button', { class: 'btn sm', type: 'button', onclick: () => edit() }, 'Изменить'),
           h('button', { class: 'btn sm ghost danger', type: 'button', 'aria-label': 'Удалить карточку', onclick: () => {
             const at = d.cards.indexOf(c);
@@ -1252,14 +1580,14 @@ function deckView(d) {
       h('button', { class: 'btn ghost sm', type: 'button', onclick: () => { exp.value = d.cards.map((c) => c.f.replace(/\t|\n/g, ' ') + '\t' + c.b.replace(/\t|\n/g, ' ')).join('\n'); expBox.hidden = !expBox.hidden; } }, 'Экспорт'),
       pdfBtn),
     expBox, searchIn,
-    chipGroup('Фильтр карточек', [['all', 'Все'], ['new', 'Новые'], ['learn', 'Учатся'], ['due', 'К повторению'], ['sched', 'В графике']], cardFilter, (k) => { cardFilter = k; drawCards(); }),
+    chipGroup('Фильтр карточек', [['all', 'Все'], ['new', 'Новые'], ['learn', 'Учатся'], ['due', 'К повторению'], ['sched', 'В графике'], ['star', 'Избранные'], ['hard', 'Трудные']], cardFilter, (k) => { cardFilter = k; drawCards(); }),
     listBox);
   drawList();
   return root;
 }
 /* ===== учебные режимы ===== */
 const qOf = (c) => (reverse ? c.b : c.f), aOf = (c) => (reverse ? c.f : c.b);
-function studyView(d) { return { srs: srsView, write: writeView, test: testView, match: matchView, ladder: ladderView, cloze: clozeView, build: buildView, sprint: sprintView }[view.mode](d); }
+function studyView(d) { return { srs: (x) => srsView([x], false), write: writeView, test: testView, match: matchView, ladder: ladderView, cloze: clozeView, build: buildView, sprint: sprintView, learn: learnView }[view.mode](d); }
 const studyHead = (d, label) => h('div', { class: 'shead' }, h('div', {}, back({ n: 'deck', id: d.id }, 'К колоде')), h('span', { class: 'cnt' }), h('span', { class: 'lbl', text: label }));
 const progBar = () => h('div', { class: 'bar' }, h('i'));
 function setBar(bar, p, txt) {
@@ -1268,11 +1596,13 @@ function setBar(bar, p, txt) {
 }
 const endPanel = (d, title, lines, again) => h('div', { class: 'panel stack', style: 'text-align:center' }, h('h2', { text: title }),
   lines.filter(Boolean).map((t) => h('p', { class: 'muted', style: 'margin:0', text: t })),
-  h('div', { class: 'row', style: 'justify-content:center' }, again, h('button', { class: 'btn', type: 'button', onclick: () => go({ n: 'deck', id: d.id }) }, 'К колоде')));
+  h('div', { class: 'row', style: 'justify-content:center' }, again, h('button', { class: 'btn', type: 'button', onclick: () => go(d ? { n: 'deck', id: d.id } : { n: 'home' }) }, d ? 'К колоде' : 'На главную')));
+// d — колода или список колод
 function nextDue(d) {
-  const now = Date.now(), xs = d.cards.filter((c) => c.s !== 'n' && c.d > now).map((c) => c.d);
-  if (!xs.length) return '';
-  const m = Math.min(...xs), diff = m - now;
+  const now = Date.now(); let m = Infinity;
+  [].concat(d).forEach((x) => x.cards.forEach((c) => { if (c.s !== 'n' && c.d > now && c.d < m) m = c.d; }));
+  if (m === Infinity) return '';
+  const diff = m - now;
   if (diff < 3600e3) return 'Ближайшее повторение через ' + Math.max(1, Math.round(diff / 60e3)) + ' мин.';
   const days = Math.round((m - sod(now)) / DAY);
   return days <= 0 ? 'Ближайшее повторение сегодня позже.' : days === 1 ? 'Ближайшее повторение завтра.' : 'Ближайшее повторение через ' + days + ' д.';
@@ -1283,87 +1613,104 @@ function lev(a, b) {
   return p[n];
 }
 
-/* повторение по расписанию */
-function srsView(d) {
-  const q = [...dueOf(d), ...newOf(d).slice(0, NEW_PER_SESSION)].map((c) => c.id), total = q.length;
-  let done = 0, again = 0;
+/* повторение по расписанию FSRS: одна колода или все сразу */
+function srsEntries(decks, extra) {
+  const now = Date.now(), due = [], fresh = [];
+  let quota = newLeft() + (extra ? Math.max(10, cfg().nw) : 0);
+  decks.forEach((d) => {
+    dueOf(d, now).forEach((c) => due.push({ d, c }));
+    const add = newOf(d).slice(0, quota); quota -= add.length;
+    add.forEach((c) => fresh.push({ d, c }));
+  });
+  const key = ({ c }) => (c.s === 'l' ? -2 + c.d / 1e14 : recallNow(c, now));
+  due.sort((a, b) => key(a) - key(b));
+  // новые карточки равномерно вплетаются между повторениями
+  return [...due.map((e, k) => [(k + 0.5) / due.length, 0, e]), ...fresh.map((e, k) => [(k + 0.5) / fresh.length, 1, e])]
+    .sort((a, b) => a[0] - b[0] || a[1] - b[1]).map((x) => x[2]);
+}
+function srsView(decks, all) {
+  const one = all ? null : decks[0], exit = all ? { n: 'home' } : { n: 'deck', id: one.id };
+  const main = srsEntries(decks, !!view.more), wait = [], total = main.length;
+  let done = 0, lapses = 0, answered = 0, cur = null, undo = null, gen = 0;
   const root = h('div', { class: 'stack' }), box = h('div', { class: 'stack' }), bar = progBar();
-  root.append(studyHead(d, 'Карточки'), bar, box);
+  const undoBtn = h('button', { class: 'btn ghost sm', type: 'button', hidden: true, onclick: doUndo }, icon('undo'), 'Отменить ответ');
+  root.append(h('div', { class: 'shead' }, h('div', {}, back(exit, all ? 'Главная' : 'К колоде')), h('span', { class: 'cnt' }), h('span', { class: 'lbl', text: all ? 'Все колоды' : 'Карточки' })),
+    bar, box, h('div', { class: 'row', style: 'justify-content:center' }, undoBtn));
+  const alive = (e) => state.decks.includes(e.d) && e.d.cards.includes(e.c);
+  // карточки на коротких шагах возвращаются, когда подошло их время; если больше показывать нечего, то сразу
+  function pick() {
+    const now = Date.now();
+    wait.sort((a, b) => a.c.d - b.c.d);
+    let e = wait.length && wait[0].c.d <= now ? wait.shift() : main.shift() || wait.shift() || null;
+    while (e && !alive(e)) e = main.shift() || wait.shift() || null;
+    return e;
+  }
+  function next() { cur = pick(); show(); }
+  function doUndo() {
+    if (!undo) return;
+    const u = undo, { d, c } = u.e; undo = null; undoBtn.hidden = true; gen++;
+    if (!alive(u.e)) return;
+    Object.keys(c).forEach((k) => { if (!(k in u.card)) delete c[k]; }); Object.assign(c, u.card);
+    ['n', 'ok'].forEach((k) => { if (u.deck[k] == null) delete d[k]; else d[k] = u.deck[k]; });
+    state.meta.days[dayKey(Date.now())] = u.day;
+    done = u.done; lapses = u.lapses; answered = u.answered;
+    const wi = wait.indexOf(u.e); if (wi > -1) wait.splice(wi, 1);
+    if (cur && cur !== u.e) main.unshift(cur);
+    cur = u.e; touch(d); touchMeta(); renderStats(); playSound('soft'); show();
+  }
+  const undoKey = (e) => { if (e.code !== 'KeyZ' || e.repeat || e.altKey || !undo) return false; e.preventDefault(); doUndo(); return true; };
   function show() {
-    setBar(bar, total ? done / total : 1, total ? Math.min(done + 1, total) + ' / ' + total : ''); box.replaceChildren(); keyHandler = null;
-    if (!q.length) return finish();
-    const c = d.cards.find((x) => x.id === q[0]), now = Date.now(); let shown = false;
+    setBar(bar, total ? done / total : 1, total ? 'Осталось: ' + (main.length + wait.length + (cur ? 1 : 0)) : '');
+    box.replaceChildren(); keyHandler = undoKey;
+    if (!cur) return finish();
+    const { d, c } = cur, now = Date.now(), my = gen; let shown = false, leaving = false;
     const { fl, setOn } = makeFlip('', qOf(c), aOf(c), reverse ? ['определение', 'термин'] : ['термин', 'определение']);
+    const R = recallNow(c, now);
+    const mem = c.s === 'n' ? h('span', { class: 'pill t', text: 'новая' }) : c.s === 'l' ? h('span', { class: 'pill lrn', text: 'учится' })
+      : h('span', { class: 'pill mem' + (R < cfg().ret - 0.1 ? ' low' : ''), title: 'Оценка FSRS: шанс, что вы вспомните эту карточку прямо сейчас', text: 'память ' + Math.round(R * 100) + '%' });
+    const say = () => speak(shown ? aOf(c) : qOf(c), sideLang(d, shown ? reverse : !reverse));
     const grades = h('div', { class: 'grades', hidden: true }, [0, 1, 2, 3].map((g) => h('button', { class: 'grade g' + g, type: 'button', onclick: () => answer(g) }, ['Снова', 'Трудно', 'Хорошо', 'Легко'][g], h('span', { text: previewLabel(c, g, now) }))));
     const showBtn = h('button', { class: 'btn pri', type: 'button', onclick: flip }, 'Показать ответ');
-    function flip() { if (shown) return; shown = true; setOn(true); grades.hidden = false; showBtn.hidden = true; }
+    function flip() { if (shown) return; shown = true; setOn(true); grades.hidden = false; showBtn.hidden = true; if (prefs.autoSpeak) say(); }
     const scene = h('div', { class: 'scene enter' }, fl);
-    let leaving = false;
     function answer(g) {
-      if (leaving) return; leaving = true; keyHandler = null;
+      if (leaving) return; leaving = true; keyHandler = undoKey;
       playSound(g === 0 ? 'wrong' : g === 1 ? 'soft' : 'right');
-      Object.assign(c, sched(c, g, Date.now())); touch(d); logReview(g >= 2, d); renderStats();
-      q.shift(); if (g === 0) { again++; q.splice(Math.min(3, q.length), 0, c.id); } else done++;
-      throwCard(scene, GRADE_FX[g]).then(() => { if (root.isConnected) show(); });
+      undo = { e: cur, card: { ...c }, deck: { n: d.n, ok: d.ok }, day: { ...todayRec(true) }, done, lapses, answered };
+      rate(d, c, g); logReview(g > 0, d); renderStats();
+      answered++; if (g === 0) lapses++;
+      if (c.s === 'l') wait.push(cur); else done++;
+      undoBtn.hidden = false;
+      throwCard(scene, GRADE_FX[g]).then(() => { if (root.isConnected && my === gen) next(); });
     }
     enableSwipe(scene, { can: () => shown && !leaving, fxFor: (dx) => GRADE_FX[dx > 0 ? 2 : 0], commit: (dir) => answer(dir > 0 ? 2 : 0) });
     fl.addEventListener('click', flip); fl.addEventListener('keydown', (e) => { if (e.key === 'Enter') flip(); });
-    box.append(stage(scene, Math.min(2, q.length - 1)), showBtn, grades, h('p', { class: 'hint' }, 'Нажмите на карточку, чтобы перевернуть. Открытую карточку можно смахнуть: вправо «Хорошо», влево «Снова».', h('span', { class: 'kb', text: ' Клавиши: пробел переворачивает, 1–4 ставят оценку.' })));
+    box.append(h('div', { class: 'cardbar' }, mem, all ? h('span', { class: 'pill', text: d.name }) : null, h('span', { class: 'grow' }),
+        canSpeak ? h('button', { class: 'iconbtn', type: 'button', title: 'Озвучить', 'aria-label': 'Озвучить видимую сторону карточки', onclick: say }, icon('soundOn')) : null, starBtn(d, c)),
+      stage(scene, Math.min(2, main.length + wait.length)), showBtn, grades,
+      h('p', { class: 'hint' }, 'Нажмите на карточку, чтобы перевернуть. Под каждой оценкой написано, когда карточка вернётся. Открытую карточку можно смахнуть: вправо «Хорошо», влево «Снова».', h('span', { class: 'kb', text: ' Клавиши: пробел переворачивает, 1–4 ставят оценку, Z отменяет ответ.' })));
     keyHandler = (e) => {
-      if (e.target.closest && e.target.closest('input,textarea,button')) { if (e.key === ' ' || e.key === 'Enter') return; }
+      if (undoKey(e)) return;
+      if (e.target.closest && e.target.closest('input,textarea,button') && (e.key === ' ' || e.key === 'Enter')) return;
       if (e.key === ' ' && !e.repeat) { e.preventDefault(); flip(); return; }
       const k = digitKey(e); if (shown && k > -1) answer(k);
     };
+    if (prefs.autoSpeak) say();
   }
   function finish() {
-    const more = newOf(d).length > 0;
-    if (total) playSound('finish');
-    box.append(endPanel(d, total ? 'Сессия окончена' : 'На сегодня повторять нечего',
-      [total ? 'Карточек: ' + total + ', с ошибкой: ' + again : 'Новые карточки закончились, срок остальных ещё не пришёл.', nextDue(d)],
-      more ? h('button', { class: 'btn pri', type: 'button', onclick: () => go({ n: 'study', id: d.id, mode: 'srs' }) }, 'Учить ещё новые') : null));
+    const moreNew = decks.reduce((s, d) => s + (state.decks.includes(d) ? newOf(d).length : 0), 0);
+    if (answered) { playSound('finish'); confetti(); }
+    const lines = answered
+      ? ['Ответов: ' + answered + (lapses ? ', из них «Снова»: ' + lapses : ', ни одного «Снова»') + '.', nextDue(decks)]
+      : [moreNew && !newLeft() ? 'Дневной лимит новых карточек исчерпан, а срок остальных ещё не пришёл.' : 'Срок карточек ещё не пришёл. Они вернутся, когда память о них начнёт слабеть.', nextDue(decks)];
+    box.append(endPanel(one, answered ? 'Сессия окончена' : 'На сегодня повторять нечего', lines,
+      moreNew ? h('button', { class: 'btn pri', type: 'button', onclick: () => go({ ...view, more: true }) }, 'Учить ещё новые') : null));
   }
-  show(); return root;
+  next(); return root;
 }
 
-/* письмо */
-function writeView(d) {
-  const q = shuffle(d.cards.filter((c) => plain(aOf(c)))).slice(0, 20).map((c) => c.id), total = q.length, retried = new Set();
-  let done = 0, first = 0;
-  const root = h('div', { class: 'stack' }), box = h('div', { class: 'stack' }), bar = progBar();
-  root.append(studyHead(d, 'Письмо'), bar, box);
-  function show() {
-    setBar(bar, total ? done / total : 1, total ? Math.min(done + 1, total) + ' / ' + total : ''); box.replaceChildren(); keyHandler = null;
-    if (!q.length) return finish();
-    const c = d.cards.find((x) => x.id === q[0]); let checked = false;
-    const inp = h('input', { type: 'text', id: 'ans', autocomplete: 'off', autocapitalize: 'off', spellcheck: false, placeholder: 'Ваш ответ', 'aria-label': 'Ваш ответ' });
-    const out = h('div', { class: 'stack' }), checkBtn = h('button', { class: 'btn pri', type: 'button', onclick: check }, 'Проверить');
-    function commit(ok) {
-      const now = Date.now();
-      if (ok) { if (c.s === 'n' || c.d <= now) { Object.assign(c, sched(c, 2, now)); touch(d); } logReview(true, d); renderStats(); if (!retried.has(c.id)) first++; q.shift(); done++; }
-      else { Object.assign(c, sched(c, 0, now)); touch(d); logReview(false, d); renderStats(); retried.add(c.id); q.shift(); q.splice(Math.min(3, q.length), 0, c.id); }
-      show();
-    }
-    function check() {
-      if (checked) return; checked = true; inp.readOnly = true;
-      const a = norm(inp.value), t = norm(plain(aOf(c))), res = a === t ? 'ok' : (a && t.length >= 6 && lev(a, t) <= 1) ? 'near' : 'no';
-      checkBtn.hidden = true;
-      playSound(res === 'no' ? 'wrong' : 'right');
-      out.append(h('div', { class: 'verdict ' + (res === 'no' ? 'no' : 'ok'), role: 'status' }, res === 'ok' ? 'Верно' : res === 'near' ? ['Верно, с опечаткой. Правильно так: ', h('b', { text: plain(aOf(c)) })] : ['Правильный ответ: ', h('b', { text: plain(aOf(c)) })]),
-        h('div', { class: 'row' }, h('button', { class: 'btn pri', type: 'button', id: 'next', onclick: () => commit(res !== 'no') }, 'Дальше'),
-          res === 'no' ? h('button', { class: 'btn ghost', type: 'button', onclick: () => commit(true) }, 'Ответ верный, засчитать') : null));
-      const nx = out.querySelector('#next'); if (nx) nx.focus();
-    }
-    inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') check(); });
-    box.append(h('div', { class: 'panel stack enter' }, h('span', { class: 'muted small', text: reverse ? 'Определение' : 'Термин' }), h('div', { class: 'q' }, rich(qOf(c))),
-      h('div', { class: 'field' }, h('label', { for: 'ans', text: reverse ? 'Термин' : 'Определение' }), inp), checkBtn, out));
-    inp.focus();
-  }
-  function finish() {
-    if (!total) return box.append(endPanel(d, 'Письмо недоступно', ['В этой колоде нет карточек с текстовым ответом.'], null));
-    playSound('finish'); box.append(endPanel(d, 'Готово', ['С первого раза верно: ' + first + ' из ' + total], h('button', { class: 'btn pri', type: 'button', onclick: () => go({ n: 'study', id: d.id, mode: 'write' }) }, 'Ещё раз')));
-  }
-  show(); return root;
-}
+/* письмо: ответ по памяти, результат идёт в график повторений */
+const writeView = (d) => drillView(d, 'Письмо', (c) => !!plain(aOf(c)), stepType, { limit: 20, score: true });
 
 /* тест */
 function optionsFor(d, c) {
@@ -1374,35 +1721,116 @@ function optionsFor(d, c) {
   }
   return shuffle([right, ...wrong]);
 }
+/* тест: настраиваемый набор вопросов трёх типов и разбор ошибок */
+const TEST_TYPES = [['mc', 'Выбор ответа'], ['tf', 'Верно или неверно'], ['wr', 'Письменный ответ']];
 function testView(d) {
-  const qs = shuffle(d.cards).slice(0, 10); let i = 0, score = 0;
   const root = h('div', { class: 'stack' }), box = h('div', { class: 'stack' }), bar = progBar();
   root.append(studyHead(d, 'Тест'), bar, box);
-  function show() {
-    setBar(bar, i / qs.length, Math.min(i + 1, qs.length) + ' / ' + qs.length); box.replaceChildren(); keyHandler = null;
-    if (i >= qs.length) playSound('finish');
-    if (i >= qs.length) return box.append(endPanel(d, 'Результат: ' + score + ' из ' + qs.length, [score === qs.length ? 'Без ошибок.' : 'Ошибки полезно пройти в режиме «Карточки» или «Лестница».'], h('button', { class: 'btn pri', type: 'button', onclick: () => go({ n: 'study', id: d.id, mode: 'test' }) }, 'Ещё раз')));
-    const c = qs[i], right = aOf(c); let locked = false;
-    const opts = optionsFor(d, c);
-    const nextBtn = h('button', { class: 'btn pri', type: 'button', hidden: true, onclick: () => { i++; show(); } }, i + 1 < qs.length ? 'Дальше' : 'Результат');
-    const btns = opts.map((o, k) => h('button', { class: 'opt', type: 'button', onclick: () => pick(k) }, h('span', { class: 'k', text: String(k + 1) }), rich(o)));
-    function pick(k) {
-      if (locked || !btns[k]) return; locked = true;
-      playSound(opts[k] === right ? 'right' : 'wrong');
-      if (opts[k] === right) score++; else btns[k].classList.add('no');
-      btns[opts.indexOf(right)].classList.add('ok'); btns.forEach((b) => { b.disabled = true; }); nextBtn.hidden = false; nextBtn.focus();
-    }
-    keyHandler = (e) => { const k = digitKey(e); if (k > -1) pick(k); };
-    box.append(h('div', { class: 'panel stack enter' }, h('span', { class: 'muted small', text: 'Вопрос ' + (i + 1) + ' из ' + qs.length }), h('div', { class: 'q' }, rich(qOf(c)))), h('div', { class: 'opts' }, btns), nextBtn);
+  const cards = pool(d), conf = { n: 10, types: ['mc', 'tf'], ...(prefs.test || {}) };
+  conf.types = (Array.isArray(conf.types) ? conf.types : []).filter((t) => TEST_TYPES.some((x) => x[0] === t));
+  if (!conf.types.length) conf.types = ['mc'];
+  let qs = [], i = 0, score = 0, wrong = [];
+  const save = () => { prefs.test = { n: conf.n, types: conf.types }; savePrefs(); };
+  function setup() {
+    setBar(bar, 0, ''); keyHandler = null;
+    const counts = [5, 10, 20].filter((n) => n < cards.length), allN = Math.min(cards.length, 50);
+    if (!counts.includes(conf.n)) conf.n = 0;
+    const typeBtns = TEST_TYPES.map(([k, t]) => h('button', { class: 'fchip', type: 'button', 'aria-pressed': String(conf.types.includes(k)), onclick: (e) => {
+      const on = conf.types.includes(k);
+      if (on && conf.types.length === 1) return toast('Нужен хотя бы один тип вопросов.');
+      conf.types = on ? conf.types.filter((x) => x !== k) : [...conf.types, k];
+      e.currentTarget.setAttribute('aria-pressed', String(!on)); save();
+    } }, t));
+    const startBtn = h('button', { class: 'btn pri', type: 'button', onclick: () => start() }, 'Начать тест');
+    box.replaceChildren(h('div', { class: 'panel stack enter' }, h('h2', { text: 'Настройте тест' }),
+      h('div', { class: 'field' }, h('span', { class: 'flabel', text: 'Сколько вопросов' }),
+        chipGroup('Сколько вопросов', [...counts.map((n) => [n, String(n)]), [0, 'Все карточки: ' + allN]], conf.n, (k) => { conf.n = k; save(); })),
+      h('div', { class: 'field' }, h('span', { class: 'flabel', text: 'Типы вопросов' }), h('div', { class: 'row', style: 'gap:8px', role: 'group', 'aria-label': 'Типы вопросов' }, typeBtns)),
+      h('p', { class: 'muted small', style: 'margin:0', text: 'Тест только проверяет знания и не меняет график повторений.' + (starOnly && cards.length < d.cards.length ? ' Вопросы берутся из избранных карточек.' : '') }),
+      h('div', {}, startBtn)));
+    queueMicrotask(() => startBtn.focus());
   }
-  show(); return root;
+  function start(list) {
+    if (list && !list.length) return setup();
+    qs = (list || shuffle(cards).slice(0, conf.n || 50)).map((c) => {
+      const can = conf.types.filter((t) => t !== 'wr' || plain(aOf(c)));
+      return { c, type: can.length ? can[Math.floor(Math.random() * can.length)] : 'mc' };
+    });
+    i = 0; score = 0; wrong = []; show();
+  }
+  function show() {
+    setBar(bar, qs.length ? i / qs.length : 1, Math.min(i + 1, qs.length) + ' / ' + qs.length); box.replaceChildren(); keyHandler = null;
+    if (i >= qs.length) return results();
+    const { c, type } = qs[i], right = aOf(c);
+    const head = h('div', { class: 'panel stack enter' }, h('span', { class: 'muted small', text: 'Вопрос ' + (i + 1) + ' из ' + qs.length + ' · ' + TEST_TYPES.find((x) => x[0] === type)[1].toLowerCase() }), h('div', { class: 'q' }, rich(qOf(c))));
+    const nextBtn = h('button', { class: 'btn pri', type: 'button', hidden: true, onclick: () => { i++; show(); } }, i + 1 < qs.length ? 'Дальше' : 'Результат');
+    const settle = (good, given) => { playSound(good ? 'right' : 'wrong'); if (good) score++; else wrong.push({ c, given }); nextBtn.hidden = false; nextBtn.focus(); };
+    if (type === 'mc') {
+      const opts = optionsFor(d, c); let locked = false;
+      const btns = opts.map((o, k) => h('button', { class: 'opt', type: 'button', onclick: () => pick(k) }, h('span', { class: 'k', text: String(k + 1) }), rich(o)));
+      const pick = (k) => {
+        if (locked || !btns[k]) return; locked = true;
+        if (opts[k] !== right) btns[k].classList.add('no');
+        btns[opts.indexOf(right)].classList.add('ok'); btns.forEach((b) => { b.disabled = true; });
+        settle(opts[k] === right, plain(opts[k]));
+      };
+      keyHandler = (e) => { const k = digitKey(e); if (k > -1) pick(k); };
+      box.append(head, h('div', { class: 'opts' }, btns), nextBtn);
+    } else if (type === 'tf') {
+      const others = d.cards.filter((x) => x.id !== c.id && norm(aOf(x)) !== norm(right));
+      const truth = !others.length || Math.random() < 0.5, shown = truth ? right : aOf(others[Math.floor(Math.random() * others.length)]);
+      const out = h('div', { class: 'stack' }); let locked = false;
+      const yes = h('button', { class: 'opt', type: 'button', onclick: () => pick(true) }, h('span', { class: 'k', text: '1' }), 'Верно'), no = h('button', { class: 'opt', type: 'button', onclick: () => pick(false) }, h('span', { class: 'k', text: '2' }), 'Неверно');
+      const pick = (ans) => {
+        if (locked) return; locked = true;
+        const good = ans === truth; yes.disabled = no.disabled = true;
+        (truth ? yes : no).classList.add('ok'); if (!good) (ans ? yes : no).classList.add('no');
+        if (!truth) out.append(h('div', { class: 'verdict ' + (good ? 'ok' : 'no'), role: 'status' }, 'Правильный ответ: ', h('b', { text: plain(right) || 'см. карточку' })));
+        settle(good, ans ? 'сочли пару верной' : 'сочли пару неверной');
+      };
+      keyHandler = (e) => { const k = digitKey(e); if (k === 0 || k === 1) pick(k === 0); };
+      head.append(h('span', { class: 'muted small', text: 'Это верная пара?' }), h('div', { class: 'tfans' }, rich(shown)));
+      box.append(head, h('div', { class: 'opts' }, yes, no), out, nextBtn);
+    } else {
+      const out = h('div', { class: 'stack' }); let checked = false;
+      const inp = h('input', { type: 'text', id: 'ans', autocomplete: 'off', autocapitalize: 'off', spellcheck: false, placeholder: 'Ваш ответ', 'aria-label': 'Ваш ответ' });
+      const ctrl = h('div', { class: 'row' }, h('button', { class: 'btn pri', type: 'button', onclick: () => check(false) }, 'Проверить'), h('button', { class: 'btn ghost', type: 'button', onclick: () => check(true) }, 'Не знаю'));
+      const check = (skip) => {
+        if (checked) return; checked = true; inp.readOnly = true; ctrl.hidden = true;
+        const res = skip ? 'no' : judge(inp.value, right);
+        out.append(h('div', { class: 'verdict ' + (res === 'no' ? 'no' : 'ok'), role: 'status' }, res === 'ok' ? 'Верно' : [res === 'near' ? 'Верно, с опечаткой. Правильно так: ' : 'Правильный ответ: ', h('b', { text: plain(right) })]));
+        settle(res !== 'no', skip ? 'не знаю' : inp.value.trim());
+      };
+      inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') check(false); });
+      head.append(inp, ctrl, out); box.append(head, nextBtn);
+      queueMicrotask(() => inp.focus());
+    }
+  }
+  function results() {
+    const pct = Math.round(score / qs.length * 100);
+    playSound('finish'); if (pct === 100) confetti();
+    box.append(h('div', { class: 'panel stack', style: 'align-items:center;text-align:center' },
+      h('div', { class: 'ring', style: '--p:' + pct, role: 'img', 'aria-label': 'Результат ' + pct + '%' }, h('b', { text: pct + '%' })),
+      h('h2', { text: 'Верно ' + score + ' из ' + qs.length }),
+      h('p', { class: 'muted', style: 'margin:0', text: wrong.length ? 'Ошибки собраны ниже. Пройдите их ещё раз или отметьте звёздочкой, чтобы тренировать отдельно.' : 'Без единой ошибки.' }),
+      h('div', { class: 'row', style: 'justify-content:center' },
+        wrong.length ? h('button', { class: 'btn pri', type: 'button', onclick: () => start(shuffle(wrong.map((w) => w.c).filter((c) => d.cards.includes(c)))) }, 'Повторить ошибки') : null,
+        h('button', { class: 'btn' + (wrong.length ? '' : ' pri'), type: 'button', onclick: setup }, 'Новый тест'),
+        h('button', { class: 'btn', type: 'button', onclick: () => go({ n: 'deck', id: d.id }) }, 'К колоде'))));
+    if (wrong.length) box.append(h('h3', { text: 'Разбор ошибок' }), h('div', { class: 'cards' }, wrong.map((w) => h('div', { class: 'crow' },
+      h('div', {}, rich(qOf(w.c))),
+      h('div', {}, h('div', { class: 'muted' }, rich(aOf(w.c))), h('div', { class: 'small', style: 'color:var(--bad);font-weight:700', text: 'Ваш ответ: ' + (w.given || 'пусто') })),
+      starBtn(d, w.c)))));
+  }
+  setup(); return root;
 }
 
 /* подбор */
 function matchView(d) {
-  const picks = shuffle(d.cards).slice(0, 6);
+  const picks = shuffle(pool(d)).slice(0, 6);
   const tiles = shuffle(picks.flatMap((c) => [{ cid: c.id, k: 'f', t: c.f }, { cid: c.id, k: 'b', t: c.b }]));
-  let sel = null, left = picks.length, t0 = 0;
+  let sel = null, left = picks.length, t0 = 0, penalty = 0;
+  const penEl = h('span', { class: 'pen', role: 'status' });
   const byId = new Map(picks.map((c) => [c.id, c]));
   const isPair = (x, y) => {
     if (x.k === y.k) return false;
@@ -1411,37 +1839,38 @@ function matchView(d) {
     return norm(a.f) === norm(b.f) || norm(a.b) === norm(b.b);
   };
   const root = h('div', { class: 'stack' }), timeEl = h('span', { class: 'mono', text: '0.0 с' }), grid = h('div', { class: 'match' });
-  clearInterval(tick); tick = setInterval(() => { if (t0) timeEl.textContent = ((Date.now() - t0) / 1000).toFixed(1) + ' с'; }, 100);
+  clearInterval(tick); tick = setInterval(() => { if (t0) timeEl.textContent = ((Date.now() - t0) / 1000 + penalty).toFixed(1) + ' с'; }, 100);
   function click(t, el) {
     if (el.classList.contains('gone')) return; if (!t0) t0 = Date.now();
     if (!sel) { sel = { t, el }; el.classList.add('sel'); return; }
     if (sel.el === el) { el.classList.remove('sel'); sel = null; return; }
     const a = sel; sel = null; a.el.classList.remove('sel');
     if (isPair(a.t, t)) { playSound('right'); a.el.classList.add('gone'); el.classList.add('gone'); if (--left === 0) win(); }
-    else { playSound('wrong'); [a.el, el].forEach((x) => x.classList.add('bad')); setTimeout(() => [a.el, el].forEach((x) => x.classList.remove('bad')), 500); }
+    else { playSound('wrong'); penalty++; penEl.textContent = 'штраф +' + penalty + ' с'; [a.el, el].forEach((x) => x.classList.add('bad')); setTimeout(() => [a.el, el].forEach((x) => x.classList.remove('bad')), 500); }
   }
   function win() {
-    clearInterval(tick); playSound('finish'); const sec = ((Date.now() - t0) / 1000).toFixed(1);
+    clearInterval(tick); playSound('finish'); const sec = ((Date.now() - t0) / 1000 + penalty).toFixed(1);
+    timeEl.textContent = sec + ' с';
     const best = d.matchBest && d.matchBest.p === picks.length ? d.matchBest.s : 0, record = !best || +sec < best;
     if (record) { d.matchBest = { p: picks.length, s: +sec }; touch(d); }
     grid.replaceWith(endPanel(d, 'Все пары найдены за ' + sec + ' с', [record ? 'Это новый рекорд колоды.' : 'Рекорд колоды: ' + best + ' с.'],h('button', { class: 'btn pri', type: 'button', onclick: () => go({ n: 'study', id: d.id, mode: 'match' }) }, 'Ещё раз')));
   }
   tiles.forEach((t) => { const el = h('button', { class: 'tile', type: 'button' }, rich(t.t)); el.addEventListener('click', () => click(t, el)); grid.append(el); });
-  root.append(h('div', { class: 'row' }, back({ n: 'deck', id: d.id }, 'К колоде'), h('span', { class: 'grow' }), h('b', {}, timeEl)),
-    h('p', { class: 'muted small', style: 'margin:0', text: 'Нажмите на термин и на его определение, чтобы убрать пару.' }), grid);
+  root.append(h('div', { class: 'row' }, back({ n: 'deck', id: d.id }, 'К колоде'), h('span', { class: 'grow' }), penEl, h('b', {}, timeEl)),
+    h('p', { class: 'muted small', style: 'margin:0', text: 'Нажмите на термин и на его определение, чтобы убрать пару. Каждая ошибка добавляет к времени секунду.' }), grid);
   return root;
 }
 
 /* шаги, общие для «Пропусков», «Сборки» и «Лестницы» */
 const stepPanel = (c, ...body) => h('div', { class: 'panel stack enter' }, h('span', { class: 'muted small', text: reverse ? 'Определение' : 'Термин' }), h('div', { class: 'q' }, rich(qOf(c))), ...body);
-function stepResult(out, res, right, done) {
+function stepResult(out, res, right, done, noOverride) {
   playSound(res === 'no' ? 'wrong' : 'right');
   out.append(h('div', { class: 'verdict ' + (res === 'no' ? 'no' : 'ok'), role: 'status' }, res === 'ok' ? 'Верно' : [res === 'near' ? 'Верно, с опечаткой. Правильно так: ' : 'Правильный ответ: ', h('b', { text: right })]),
     h('div', { class: 'row' }, h('button', { class: 'btn pri', type: 'button', id: 'next', onclick: () => done(res !== 'no') }, 'Дальше'),
-      res === 'no' ? h('button', { class: 'btn ghost', type: 'button', onclick: () => done(true) }, 'Ответ верный, засчитать') : null));
+      res === 'no' && !noOverride ? h('button', { class: 'btn ghost', type: 'button', onclick: () => done(true) }, 'Ответ верный, засчитать') : null));
   out.querySelector('#next').focus();
 }
-const closeEnough = (a, t) => (a === t ? 'ok' : a && t.length >= 6 && lev(a, t) <= 1 ? 'near' : 'no');
+const closeEnough = (a, t) => (a === t ? 'ok' : a && t.length >= 6 && lev(a, t) <= (t.length >= 14 ? 2 : 1) ? 'near' : 'no');
 
 function stepChoice(d, c, done) {
   const right = aOf(c), opts = optionsFor(d, c);
@@ -1461,16 +1890,24 @@ function stepChoice(d, c, done) {
   return h('div', { class: 'stack' }, stepPanel(c), h('div', { class: 'opts' }, btns), nextBtn);
 }
 function stepType(c, done) {
-  const right = plain(aOf(c)), out = h('div', { class: 'stack' }); let checked = false;
+  const right = plain(aOf(c)), out = h('div', { class: 'stack' }); let checked = false, hints = 0;
   const inp = h('input', { type: 'text', id: 'ans', autocomplete: 'off', autocapitalize: 'off', spellcheck: false, placeholder: 'Ваш ответ', 'aria-label': 'Ваш ответ' });
-  const btn = h('button', { class: 'btn pri', type: 'button', onclick: check }, 'Проверить');
-  function check() {
-    if (checked) return; checked = true; inp.readOnly = true; btn.hidden = true;
-    stepResult(out, closeEnough(norm(inp.value), norm(right)), right, done);
+  const hintBtn = h('button', { class: 'btn ghost', type: 'button', onclick: () => {
+    hints++; inp.placeholder = right.slice(0, hints) + '…';
+    if (hints >= Math.min(3, right.length - 1)) hintBtn.hidden = true;
+    inp.focus();
+  } }, 'Подсказка');
+  hintBtn.hidden = right.length < 2;
+  const ctrl = h('div', { class: 'row' }, h('button', { class: 'btn pri', type: 'button', onclick: () => check(false) }, 'Проверить'), hintBtn,
+    h('button', { class: 'btn ghost', type: 'button', onclick: () => check(true) }, 'Не знаю'));
+  function check(skip) {
+    if (checked) return; checked = true; inp.readOnly = true; ctrl.hidden = true;
+    const res = skip ? 'no' : judge(inp.value, aOf(c));
+    stepResult(out, res, right, done, skip || !inp.value.trim());
   }
-  inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') check(); });
+  inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') check(false); });
   queueMicrotask(() => inp.focus());
-  return stepPanel(c, inp, btn, out);
+  return stepPanel(c, h('div', { class: 'field' }, h('label', { for: 'ans', text: reverse ? 'Термин' : 'Определение' }), inp), ctrl, out);
 }
 
 const STOP_WORDS = new Set(['который', 'которая', 'которое', 'которые', 'которых', 'также', 'этого', 'этот', 'этой', 'этих', 'может', 'могут', 'после', 'через', 'между', 'перед', 'когда', 'чтобы', 'только', 'очень', 'более', 'менее', 'того', 'него', 'всего', 'всех', 'with', 'that', 'this', 'from']);
@@ -1549,8 +1986,9 @@ function stepBuild(c, done) {
   return stepPanel(c, tray, pool, h('div', { class: 'row' }, clearBtn, h('span', { class: 'muted small', text: sep ? 'Нажимайте на слова по порядку.' : 'Нажимайте на буквы или печатайте их.' })), out);
 }
 
-function drillView(d, label, eligible, step) {
-  const q = shuffle(d.cards.filter(eligible)).slice(0, 15).map((c) => c.id), total = q.length, retried = new Set();
+// opt.limit — сколько карточек в сессии, opt.score — учитывать ответы в графике повторений и статистике
+function drillView(d, label, eligible, step, opt = {}) {
+  const q = shuffle(pool(d).filter(eligible)).slice(0, opt.limit || 15).map((c) => c.id), total = q.length, retried = new Set();
   let done = 0, first = 0;
   const root = h('div', { class: 'stack' }), box = h('div', { class: 'stack' }), bar = progBar();
   root.append(studyHead(d, label), bar, box);
@@ -1563,6 +2001,11 @@ function drillView(d, label, eligible, step) {
     }
     const c = d.cards.find((x) => x.id === q[0]);
     box.append(step(c, (good) => {
+      if (opt.score) {
+        const t = Date.now();
+        if (!good) rate(d, c, 0, t); else if (c.s !== 'r' || c.d <= t) rate(d, c, retried.has(c.id) ? 1 : 2, t);
+        logReview(good, d); renderStats();
+      }
       q.shift();
       if (good) { if (!retried.has(c.id)) first++; done++; }
       else { retried.add(c.id); q.splice(Math.min(3, q.length), 0, c.id); }
@@ -1577,8 +2020,8 @@ const buildView = (d) => drillView(d, 'Сборка', canBuild, stepBuild);
 /* лестница: три шага на карточку, ошибка возвращает на шаг назад */
 function ladderView(d) {
   const now = Date.now();
-  const urgency = (c) => (c.s !== 'n' && c.d <= now ? 100 : 0) + (c.l || 0) * 10 + (2.5 - c.e) * 10 + (c.s === 'n' ? 5 : 0);
-  const items = shuffle(d.cards.filter((c) => plain(aOf(c)))).sort((a, b) => urgency(b) - urgency(a)).slice(0, 8).map((c) => ({ id: c.id, lv: 0, errs: 0 }));
+  const urgency = (c) => (c.s !== 'n' && c.d <= now ? 100 : 0) + (c.l || 0) * 10 + ((memOf(c) || { D: 5 }).D - 5) * 3 + (c.s === 'n' ? 5 : 0);
+  const items = shuffle(pool(d).filter((c) => plain(aOf(c)))).sort((a, b) => urgency(b) - urgency(a)).slice(0, 8).map((c) => ({ id: c.id, lv: 0, errs: 0 }));
   const q = items.slice(); let clean = 0, updated = 0;
   const root = h('div', { class: 'stack' }), box = h('div', { class: 'stack' }), bar = progBar();
   root.append(studyHead(d, 'Лестница'), bar, box);
@@ -1591,7 +2034,7 @@ function ladderView(d) {
   function complete(it, c) {
     if (!it.errs) clean++;
     const t = Date.now();
-    if (c.s === 'n' || c.d <= t) { Object.assign(c, sched(c, it.errs ? 1 : 2, t)); logReview(!it.errs, d); renderStats(); updated++; }
+    if (c.s !== 'r' || c.d <= t) { rate(d, c, it.errs ? 1 : 2, t); logReview(!it.errs, d); renderStats(); updated++; }
   }
   function show() {
     const climbed = items.reduce((s, x) => s + x.lv, 0), passed = items.filter((x) => x.lv >= 3).length;
@@ -1637,7 +2080,7 @@ function sprintView(d) {
   }
   function next() {
     box.replaceChildren();
-    if (!bag.length) bag = shuffle(d.cards);
+    if (!bag.length) bag = shuffle(pool(d));
     const c = bag.pop(), others = d.cards.filter((x) => x.id !== c.id && norm(aOf(x)) !== norm(aOf(c)));
     const truth = !others.length || Math.random() < 0.5, shown = truth ? aOf(c) : aOf(others[Math.floor(Math.random() * others.length)]);
     const scene = h('div', { class: 'scene enter' }, h('div', { class: 'flip sm static' }, h('div', { class: 'face duo' }, h('div', { class: 'q1' }, rich(qOf(c))), rich(shown))));
@@ -1681,6 +2124,268 @@ function sprintView(d) {
     startBtn));
   queueMicrotask(() => startBtn.focus());
   return root;
+}
+/* заучивание: раунды по 7 вопросов, прогресс хранится в колоде (learn.r — номер раунда, learn.m — уровень карточки: 1 выбрана верно, 2 пройдена) */
+function starBtn(d, c, after) {
+  const b = h('button', { class: 'iconbtn star', type: 'button' }, icon('star'));
+  const draw = () => { const t = c.st ? 'Убрать из избранного' : 'Добавить в избранное'; b.classList.toggle('on', !!c.st); b.setAttribute('aria-pressed', String(!!c.st)); b.title = t; b.setAttribute('aria-label', t); };
+  b.addEventListener('click', () => { if (c.st) delete c.st; else c.st = 1; touch(d); draw(); if (after) after(); });
+  draw(); return b;
+}
+const ROUND = 7, PRAISE = ['Отлично!', 'Верно!', 'Так держать!', 'Точно!', 'Здорово!'];
+function learnProgress(d) {
+  const m = (d.learn && d.learn.m) || {}, tot = d.cards.length, done = d.cards.filter((c) => m[c.id] >= 2).length;
+  return { done, tot, pct: tot ? Math.round(done / tot * 100) : 0 };
+}
+function learnView(d) {
+  if (!d.learn) d.learn = { r: 1, m: {} };
+  const L = d.learn;
+  const root = h('div', { class: 'stack learn' }), box = h('div', { class: 'stack' }), titleEl = h('b'), track = h('div', { class: 'ltrack' });
+  let queue = [], asked = [], streak = 0, again = new Set();
+  const lvl = (c) => L.m[c.id] || 0;
+  const needWrite = (c) => !!prefs.learnWrite && !!plain(aOf(c));
+  const praise = () => PRAISE[Math.floor(Math.random() * PRAISE.length)];
+  function drawTrack(el, mood) {
+    const { done, tot } = learnProgress(d), p = tot ? done / tot : 0, n = Math.max(1, Math.min(6, Math.ceil(tot / ROUND)));
+    el.className = 'ltrack' + (mood === 'miss' ? ' miss' : mood !== 'calm' && streak >= 3 ? ' hot' : '');
+    el.setAttribute('role', 'img'); el.setAttribute('aria-label', 'Пройдено карточек: ' + done + ' из ' + tot);
+    el.replaceChildren(h('div', { class: 'lsegs' },
+      Array.from({ length: n }, (_, i) => h('div', { class: 'lseg' }, h('i', { style: 'width:' + Math.max(0, Math.min(1, p * n - i)) * 100 + '%' }))),
+      h('div', { class: 'lmark', style: 'left:clamp(20px,' + p * 100 + '%,calc(100% - 20px))' }, icon('flame'), String(done))),
+      h('div', { class: 'lend', text: String(tot) }));
+  }
+  /* настройки */
+  const setBox = h('div', { class: 'panel stack', hidden: true });
+  const wr = h('input', { type: 'checkbox', id: 'l-write', checked: !!prefs.learnWrite });
+  wr.addEventListener('change', () => { prefs.learnWrite = wr.checked; savePrefs(); });
+  const rv = h('input', { type: 'checkbox', id: 'l-rev', checked: reverse });
+  rv.addEventListener('change', () => { reverse = rv.checked; prefs.reverse = reverse; savePrefs(); });
+  const resetBtn = h('button', { class: 'btn ghost danger sm', type: 'button' }, 'Сбросить прогресс заучивания');
+  let armed = false;
+  const reset = () => { L.r = 1; L.m = {}; streak = 0; touch(d); setBox.hidden = true; startRound(); };
+  resetBtn.addEventListener('click', () => {
+    if (!armed) { armed = true; resetBtn.textContent = 'Точно сбросить? Нажмите ещё раз'; setTimeout(() => { armed = false; resetBtn.textContent = 'Сбросить прогресс заучивания'; }, 4000); return; }
+    armed = false; resetBtn.textContent = 'Сбросить прогресс заучивания'; reset();
+  });
+  setBox.append(h('h3', { text: 'Настройки заучивания' }),
+    h('label', { class: 'row', for: 'l-write' }, wr, 'После выбора варианта спрашивать ответ письменно'),
+    h('label', { class: 'row', for: 'l-rev' }, rv, 'Сначала показывать определение'),
+    h('p', { class: 'muted small', style: 'margin:0', text: 'Изменения подействуют со следующего вопроса.' }),
+    h('div', {}, resetBtn));
+  root.append(h('div', { class: 'lhead' },
+    h('button', { class: 'roundbtn', type: 'button', 'aria-label': 'Закрыть и вернуться к колоде', onclick: () => go({ n: 'deck', id: d.id }) }, icon('close')),
+    titleEl,
+    h('button', { class: 'roundbtn', type: 'button', 'aria-label': 'Настройки заучивания', onclick: () => { setBox.hidden = !setBox.hidden; } }, icon('gear'))),
+    setBox, track, box);
+
+  const doneRow = () => h('div', { class: 'row' },
+    h('button', { class: 'btn pri', type: 'button', onclick: reset }, 'Пройти заново'),
+    h('button', { class: 'btn', type: 'button', onclick: () => go({ n: 'deck', id: d.id }) }, 'К колоде'));
+  function startRound() {
+    const pend = shuffle(d.cards.filter((c) => lvl(c) < 2)).sort((a, b) => lvl(b) - lvl(a));
+    again = new Set(); queue = pend.slice(0, ROUND); asked = queue.slice();
+    track.hidden = false; keyHandler = null;
+    if (d.cards.length < 2) { titleEl.textContent = 'Заучивание'; drawTrack(track, 'calm'); return box.replaceChildren(endPanel(d, 'Нужно минимум две карточки', ['Добавьте карточки в колоду, и режим станет доступен.'], null)); }
+    if (!pend.length) {
+      titleEl.textContent = 'Готово'; drawTrack(track, 'calm');
+      return box.replaceChildren(h('div', { class: 'stack enter' }, h('h1', { text: 'Колода пройдена: на все карточки дан верный ответ.' }),
+        h('p', { class: 'muted', style: 'margin:0', text: 'Чтобы знания не выветрились, повторяйте карточки по графику в режиме «Карточки» или пройдите заучивание ещё раз.' }), doneRow()));
+    }
+    titleEl.textContent = 'Раунд ' + L.r;
+    next();
+  }
+  function next() {
+    keyHandler = null; drawTrack(track); box.replaceChildren();
+    if (!queue.length) return roundEnd();
+    const c = queue.shift();
+    if (!d.cards.includes(c)) return next();
+    box.append(lvl(c) >= 1 && needWrite(c) ? askWrite(c) : askChoice(c));
+  }
+  function settle(c, good, viaWrite) {
+    if (good) {
+      streak++; L.m[c.id] = viaWrite || !needWrite(c) ? 2 : 1;
+      const t = Date.now();
+      if (L.m[c.id] === 2 && (c.s !== 'r' || c.d <= t)) rate(d, c, again.has(c.id) ? 1 : 2, t);
+    } else {
+      streak = 0; if (!viaWrite) delete L.m[c.id];
+      if (!again.has(c.id)) { again.add(c.id); queue.push(c); }
+    }
+    logReview(good, d); renderStats();
+    drawTrack(track, good ? '' : 'miss');
+  }
+  function verdict(fb, good) { fb.className = 'lfb ' + (good ? 'ok' : 'no'); fb.textContent = good ? praise() : 'Не волнуйтесь, вы ещё учитесь!'; }
+  function askChoice(c) {
+    const right = aOf(c), opts = optionsFor(d, c); let locked = false;
+    const fb = h('div', { class: 'lfb', role: 'status', text: 'Выберите ответ' });
+    const cont = h('button', { class: 'btn pri', type: 'button', hidden: true, onclick: next }, 'Продолжить');
+    const btns = opts.map((o, k) => h('button', { class: 'lopt', type: 'button', onclick: () => pick(k) }, rich(o)));
+    function pick(k) {
+      if (locked || !btns[k]) return; locked = true;
+      const good = opts[k] === right, ri = opts.indexOf(right);
+      playSound(good ? 'right' : 'wrong');
+      btns.forEach((b) => { b.disabled = true; });
+      btns[k].classList.add(good ? 'ok' : 'no'); btns[k].prepend(icon(good ? 'check' : 'close'));
+      if (!good) { btns[ri].classList.add('show'); btns[ri].prepend(icon('check')); }
+      verdict(fb, good); settle(c, good, false);
+      if (good) setTimeout(() => { if (fb.isConnected) next(); }, 850);
+      else { cont.hidden = false; cont.focus(); }
+    }
+    keyHandler = (e) => { const k = digitKey(e); if (k > -1) pick(k); };
+    return h('div', { class: 'stack enter' }, h('div', { class: 'lq' }, rich(qOf(c))), fb, h('div', { class: 'lopts' }, btns), cont, h('p', { class: 'hint kb', text: 'Клавиши 1–4 выбирают вариант.' }));
+  }
+  function askWrite(c) {
+    const right = plain(aOf(c)); let checked = false;
+    const fb = h('div', { class: 'lfb', role: 'status', text: 'Введите ответ' });
+    const inp = h('input', { type: 'text', autocomplete: 'off', autocapitalize: 'off', spellcheck: false, placeholder: 'Ваш ответ', 'aria-label': 'Ваш ответ' });
+    const out = h('div', { class: 'stack' });
+    const ctrl = h('div', { class: 'row' }, h('button', { class: 'btn pri', type: 'button', onclick: () => check(false) }, 'Проверить'),
+      h('button', { class: 'btn ghost', type: 'button', onclick: () => check(true) }, 'Не знаю'));
+    function check(skip) {
+      if (checked) return; checked = true; inp.readOnly = true; ctrl.hidden = true;
+      const res = skip ? 'no' : closeEnough(norm(inp.value), norm(right)), good = res !== 'no';
+      playSound(good ? 'right' : 'wrong');
+      verdict(fb, good);
+      if (res !== 'ok') out.append(h('div', { class: 'lopt show' }, icon('check'), h('span', { text: right })));
+      settle(c, good, true);
+      const cont = h('button', { class: 'btn pri', type: 'button', onclick: next }, 'Продолжить');
+      out.append(cont); cont.focus();
+    }
+    inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') check(false); });
+    queueMicrotask(() => inp.focus());
+    return h('div', { class: 'stack enter' }, h('div', { class: 'lq' }, rich(qOf(c))), fb, inp, ctrl, out);
+  }
+  function roundEnd() {
+    const { done, tot, pct } = learnProgress(d), all = done >= tot, finished = L.r;
+    playSound('finish'); L.r++; touch(d);
+    titleEl.textContent = all ? 'Готово' : 'Раунд ' + finished;
+    track.hidden = true;
+    const sum = h('div', { class: 'ltrack' }); drawTrack(sum, 'calm');
+    const shown = asked.filter((c) => d.cards.includes(c));
+    const nextBtn = all ? doneRow() : h('button', { class: 'btn pri', type: 'button', style: 'width:100%', onclick: startRound }, 'Перейти к раунду ' + L.r);
+    box.append(h('div', { class: 'stack enter' },
+      h('h1', { text: all ? 'Раунд ' + finished + ' пройден, а с ним и вся колода!' : 'Раунд ' + finished + ' пройден!' }),
+      h('p', { class: 'muted', style: 'margin:0', text: all ? 'На все карточки дан верный ответ.' : 'Переходим к следующему раунду. У вас отлично получается!' }),
+      h('div', {}, h('div', { class: 'row', style: 'gap:8px;font-weight:800' }, 'Общий прогресс по колоде:', h('span', { style: 'color:var(--good)', text: pct + '%' })),
+        sum, h('div', { class: 'llabels' }, h('span', { text: 'Пройдено' }), h('span', { text: 'Всего карточек' }))),
+      shown.length ? h('h3', { class: 'gh', text: 'Термины из этого раунда' }) : null,
+      h('div', { class: 'cards' }, shown.map((c) => h('div', { class: 'lterm' },
+        h('div', { class: 'row', style: 'flex-wrap:nowrap;align-items:flex-start' }, h('div', { class: 'grow' }, rich(c.f)), again.has(c.id) ? h('span', { class: 'pill err', text: 'была ошибка' }) : null, starBtn(d, c)),
+        h('div', { class: 'muted' }, rich(c.b))))),
+      nextBtn));
+    const b = box.querySelector('.btn.pri'); if (b) b.focus({ preventScroll: true });
+  }
+  startRound(); return root;
+}
+/* ===== проверка письменных ответов: принимается весь ответ, любой вариант через «;» или «/» и ответ без пояснений в скобках ===== */
+function answerVariants(right) {
+  const base = plain(right), bare = base.replace(/\([^)]*\)/g, ' '), set = new Set([norm(base), norm(bare)]);
+  bare.split(/[;/\n]/).forEach((p) => set.add(norm(p)));
+  set.delete('');
+  return [...set];
+}
+function judge(input, right) {
+  const a = norm(input); let best = 'no';
+  if (!a) return best;
+  for (const t of answerVariants(right)) {
+    const r = closeEnough(a, t);
+    if (r === 'ok') return r;
+    if (r === 'near') best = r;
+  }
+  return best;
+}
+
+/* ===== только избранные карточки в тренировочных режимах ===== */
+let starOnly = !!prefs.starOnly;
+const pool = (d) => { const st = starOnly ? d.cards.filter((c) => c.st) : []; return st.length >= 2 ? st : d.cards; };
+
+/* ===== озвучка средствами браузера ===== */
+const canSpeak = 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
+const LANGS = [['auto', 'Определять по тексту'], ['ru-RU', 'Русский'], ['en-US', 'Английский'], ['de-DE', 'Немецкий'], ['fr-FR', 'Французский'], ['es-ES', 'Испанский'], ['it-IT', 'Итальянский'], ['pt-PT', 'Португальский'], ['tr-TR', 'Турецкий'], ['zh-CN', 'Китайский'], ['ja-JP', 'Японский'], ['ko-KR', 'Корейский']];
+const langOk = (v) => (LANGS.some((x) => x[0] === v) ? v : 'auto');
+const guessLang = (t) => (/[぀-ヿ]/.test(t) ? 'ja-JP' : /[가-힯]/.test(t) ? 'ko-KR' : /[一-鿿]/.test(t) ? 'zh-CN' : /[а-яё]/i.test(t) ? 'ru-RU' : 'en-US');
+const sideLang = (d, front) => langOk((d.lang || {})[front ? 'f' : 'b']);
+function speak(text, lang) {
+  if (!canSpeak) return;
+  const t = plain(text).replace(/\s+/g, ' ').slice(0, 300); if (!t) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(t), want = !lang || lang === 'auto' ? guessLang(t) : lang;
+    u.lang = want; u.rate = 0.95;
+    const v = speechSynthesis.getVoices().find((x) => String(x.lang).replace('_', '-').toLowerCase().indexOf(want.slice(0, 2).toLowerCase()) === 0);
+    if (v) u.voice = v;
+    speechSynthesis.speak(u);
+  } catch (e) { /* озвучка недоступна */ }
+}
+function stopSpeech() { if (canSpeak) try { speechSynthesis.cancel(); } catch (e) { /* озвучка недоступна */ } }
+
+/* ===== конфетти в конце сессии ===== */
+function confetti() {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const box = h('div', { class: 'confetti', 'aria-hidden': 'true' }), colors = ['var(--pri)', 'var(--hl)', 'var(--good)', 'var(--bad)'];
+  for (let k = 0; k < 44; k++) box.append(h('i', { style: 'left:' + Math.random() * 100 + '%;background:' + colors[k % 4] + ';animation-delay:' + Math.random() * 0.35 + 's;animation-duration:' + (1.5 + Math.random()) + 's;--dx:' + Math.round(Math.random() * 160 - 80) + 'px;--rot:' + Math.round(Math.random() * 720 - 360) + 'deg' }));
+  document.body.append(box); setTimeout(() => box.remove(), 3400);
+}
+
+/* ===== настройки ===== */
+const SVG_NS = 'http://www.w3.org/2000/svg';
+function sv(tag, attrs, ...kids) {
+  const el = document.createElementNS(SVG_NS, tag);
+  for (const k in attrs || {}) el.setAttribute(k, attrs[k]);
+  kids.forEach((x) => el.append(x));
+  return el;
+}
+// кривая забывания карточки со стабильностью 10 дней: оси в одном масштабе с кривой, по вертикали от 70% до 100%
+function forgetCurve(ret) {
+  const S = 10, T = 40, X0 = 40, X1 = 312, Y0 = 14, Y1 = 118, LOW = 0.7;
+  const x = (t) => X0 + t / T * (X1 - X0), y = (r) => Y1 - (r - LOW) / (1 - LOW) * (Y1 - Y0);
+  const due = S / F_FACTOR * (Math.pow(ret, 1 / F_DECAY) - 1), day = Math.max(1, Math.round(due));
+  const svg = sv('svg', { viewBox: '0 0 320 142', class: 'curve', role: 'img', 'aria-label': 'Кривая забывания: шанс вспомнить карточку падает со временем, повтор назначается на ' + day + '-й день' });
+  [1, 0.85, 0.7].forEach((r) => svg.append(sv('line', { class: 'ax', x1: X0, x2: X1, y1: y(r), y2: y(r) }), sv('text', { x: X0 - 6, y: y(r) + 4, 'text-anchor': 'end' }, Math.round(r * 100) + '%')));
+  [0, 10, 20, 30, 40].forEach((t) => svg.append(sv('text', { x: x(t), y: Y1 + 17, 'text-anchor': t === 0 ? 'start' : t === T ? 'end' : 'middle' }, t === T ? '40 дней' : String(t))));
+  svg.append(sv('polyline', { class: 'ln', points: Array.from({ length: 81 }, (_, k) => x(k / 2).toFixed(1) + ',' + y(retr(k / 2, S)).toFixed(1)).join(' ') }),
+    sv('line', { class: 'th', x1: X0, x2: x(due), y1: y(ret), y2: y(ret) }), sv('line', { class: 'th', x1: x(due), x2: x(due), y1: y(ret), y2: Y1 }),
+    sv('circle', { class: 'dot', cx: x(due), cy: y(ret), r: 5 }),
+    sv('text', { class: 'lab', x: Math.min(x(due) + 9, X1 - 104), y: Math.max(11, y(ret) - 9) }, 'повтор на ' + day + '-й день'));
+  return svg;
+}
+function settingsView() {
+  const c = cfg(), num = (v) => v.toFixed(1).replace('.', ',');
+  const retOut = h('b', { class: 'bigval' }), retNote = h('p', { class: 'muted small', style: 'margin:0' }), curveBox = h('div');
+  const range = h('input', { type: 'range', id: 'ret-range', class: 'range', min: 80, max: 97, step: 1, value: Math.round(c.ret * 100), 'aria-label': 'Целевое запоминание, проценты' });
+  const drawRet = () => {
+    const ret = range.value / 100, k = (Math.pow(ret, -2) - 1) / (Math.pow(0.9, -2) - 1);
+    retOut.textContent = range.value + '%';
+    retNote.textContent = +range.value === 90 ? 'Стандартный уровень: разумный баланс между нагрузкой и надёжностью.'
+      : k > 1 ? 'Интервалы в ' + num(k) + ' раза длиннее, чем при 90%: повторений меньше, но забываться будет чаще.'
+        : 'Интервалы в ' + num(1 / k) + ' раза короче, чем при 90%: помнить будете надёжнее, но повторять придётся чаще.';
+    curveBox.replaceChildren(forgetCurve(ret));
+  };
+  range.addEventListener('input', drawRet);
+  range.addEventListener('change', () => { setCfg({ ret: range.value / 100 }); toast('Целевое запоминание: ' + range.value + '%. Следующие интервалы считаются по нему.'); });
+  drawRet();
+  const auto = h('input', { type: 'checkbox', id: 'auto-speak', checked: !!prefs.autoSpeak });
+  auto.addEventListener('change', () => { prefs.autoSpeak = auto.checked; savePrefs(); });
+  return h('div', { class: 'stack' },
+    h('h1', { text: 'Настройки' }),
+    h('section', { class: 'panel stack' },
+      h('h2', { text: 'Алгоритм повторений FSRS' }),
+      h('p', { style: 'margin:0;max-width:68ch', text: 'Для каждой карточки Зубрилка оценивает, насколько прочно она держится в памяти и насколько она трудная. По вашим оценкам «Снова», «Трудно», «Хорошо» и «Легко» алгоритм FSRS пересчитывает, в какой день шанс вспомнить карточку опустится до целевого уровня. В этот день она и вернётся: не раньше, чем нужно, и не позже, чем вы её забудете.' }),
+      h('div', { class: 'row' }, h('label', { class: 'flabel grow', for: 'ret-range', text: 'Целевое запоминание' }), retOut),
+      range, retNote, curveBox,
+      h('p', { class: 'muted small', style: 'margin:0', text: 'На графике карточка, которая держится в памяти 10 дней. Линия показывает, как падает шанс её вспомнить, точка отмечает день повтора. Уже назначенные сроки не сдвигаются, новый уровень действует со следующего ответа.' })),
+    h('section', { class: 'panel stack' },
+      h('h2', { text: 'Новые карточки в день' }),
+      chipGroup('Новых карточек в день', [[0, '0'], [5, '5'], [10, '10'], [20, '20'], [30, '30'], [50, '50']], c.nw, (k) => setCfg({ nw: k })),
+      h('p', { class: 'muted small', style: 'margin:0', text: 'Столько новых карточек «Карточки» добавляют за день во всех колодах вместе. Сегодня начато: ' + (todayRec().nw || 0) + '. Каждая новая карточка завтра станет повторением, поэтому большой лимит быстро увеличивает нагрузку. Кнопка «Учить ещё новые» в конце сессии разрешает выйти за лимит.' })),
+    h('section', { class: 'panel stack' },
+      h('h2', { text: 'Цель дня' }),
+      chipGroup('Цель на день, ответов', [[10, '10'], [20, '20'], [30, '30'], [50, '50']], prefs.goal || 20, (k) => { prefs.goal = k; savePrefs(); }),
+      h('p', { class: 'muted small', style: 'margin:0', text: 'Сколько ответов в день вы хотите давать. Настройка хранится на этом устройстве.' })),
+    h('section', { class: 'panel stack' },
+      h('h2', { text: 'Озвучка' }),
+      canSpeak ? h('label', { class: 'check', for: 'auto-speak' }, auto, 'Читать карточку вслух, когда она появляется и переворачивается')
+        : h('p', { class: 'muted', style: 'margin:0', text: 'В этом браузере нет синтеза речи, поэтому кнопки озвучки скрыты.' }),
+      canSpeak ? h('p', { class: 'muted small', style: 'margin:0', text: 'Голос и набор языков зависят от браузера и системы. Язык каждой стороны карточки задаётся в настройках колоды.' }) : null));
 }
 initStore();
 </script>
