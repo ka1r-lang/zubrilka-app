@@ -1,3 +1,13 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FFFFFF">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Зубрилка">
+<meta name="format-detection" content="telephone=no">
 <title>Зубрилка</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap">
@@ -396,6 +406,47 @@ select:focus{outline:none;border-color:var(--pri)}
 .confetti i{position:absolute;top:-16px;width:9px;height:14px;border-radius:2px;animation:confetti 2s cubic-bezier(.2,.6,.4,1) forwards}
 @keyframes confetti{to{transform:translate(var(--dx),105vh) rotate(var(--rot))}}
 </style>
+<style>
+/* телефон: отступ под вырезом экрана, без масштабирования текста, отклик на касание вместо зависшего наведения */
+html{padding-top:env(safe-area-inset-top,0px);-webkit-text-size-adjust:100%;text-size-adjust:100%;scroll-padding-top:calc(72px + env(safe-area-inset-top,0px))}
+body{-webkit-tap-highlight-color:transparent}
+button,.deck,.mode,.opt,.lopt,.tile,.grade,.bchip,.fchip,.tab,.fab{touch-action:manipulation}
+@media(hover:none){
+  .deck:hover{box-shadow:none;transform:none}
+  .btn:hover:not(:disabled),.mode:hover:not(:disabled),.opt:hover:not(:disabled),.lopt:hover:not(:disabled),.tile:hover,.bchip:hover:not(:disabled),.fchip:hover,.roundbtn:hover{border-color:var(--line)}
+  .btn.pri:hover:not(:disabled){border-color:var(--pri);filter:none}
+  .btn.ghost:hover:not(:disabled){background:transparent;border-color:transparent}
+  .iconbtn:hover{background:transparent;color:var(--muted)}
+  .grade:hover{background:var(--surface)!important;border-color:var(--line)!important}
+  .btn:active:not(:disabled),.mode:active:not(:disabled),.opt:active:not(:disabled),.lopt:active:not(:disabled),.tile:active,.grade:active,.bchip:active:not(:disabled),.fchip:active,.deck:active,.iconbtn:active,.tab:active,.fab:active{transform:scale(.97)}
+}
+@media(max-width:560px){
+  /* в режимах обучения у экрана своя шапка, верхняя панель только отнимает место у карточки */
+  body[data-view="study"] .nav{display:none}
+  body[data-view="study"] .wrap{padding-top:16px}
+  .shead{grid-template-columns:auto 1fr auto}
+  .shead .cnt{justify-self:center;text-align:center}
+  .shead .btn{white-space:nowrap;padding-inline:10px 14px}
+  .flip{min-height:min(340px,46svh)}
+  .flip.sm{min-height:min(260px,40svh)}
+  /* кнопки и поля не меньше 44 пикселей, чтобы попадать пальцем */
+  .btn.sm{min-height:44px}
+  .fchip{min-height:44px;padding-inline:14px}
+  .linkbtn{display:inline-flex;align-items:center;min-height:44px}
+  .check{min-height:44px}
+  .more summary{padding-block:12px}
+  .logo{padding:6px;margin:-6px}
+  input[type=text].blank{min-height:40px}
+  .shead .cnt{white-space:nowrap}
+}
+@media(max-width:380px){.shead .lbl{display:none}}
+@media(max-width:560px) and (max-height:720px){
+  .grades{grid-template-columns:repeat(4,1fr);gap:6px}
+  .grade{padding:8px 2px;font-size:14px}
+}
+</style>
+</head>
+<body>
 <header class="nav">
   <div class="in">
     <button class="logo" id="logo" type="button" aria-label="Зубрилка, на главную"><i id="logo-mark"></i>Зубрилка</button>
@@ -832,6 +883,8 @@ function drawTools() {
   setIconBtn($('#theme-btn'), dark ? 'sun' : 'moon', dark ? 'Включить светлую тему' : 'Включить тёмную тему');
   setIconBtn($('#sound-btn'), prefs.sound ? 'soundOn' : 'soundOff', prefs.sound ? 'Выключить звук' : 'Включить звук');
   setIconBtn($('#set-btn'), 'gear', 'Настройки');
+  const bar = document.querySelector('meta[name="theme-color"]');
+  if (bar) bar.content = getComputedStyle(root).getPropertyValue('--surface').trim() || '#FFFFFF';
 }
 $('#set-btn').addEventListener('click', () => go({ n: 'settings' }));
 function applyTheme() { if (prefs.theme && root.dataset.theme !== prefs.theme) root.dataset.theme = prefs.theme; drawTools(); }
@@ -2389,3 +2442,5 @@ function settingsView() {
 }
 initStore();
 </script>
+</body>
+</html>
